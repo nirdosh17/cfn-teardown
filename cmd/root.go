@@ -74,15 +74,15 @@ func validateConfigs(config models.Config) (err error) {
 	emptyFlags := []string{}
 
 	if config.StackPattern == "" {
-		emptyFlags = append(emptyFlags, "stackPattern")
+		emptyFlags = append(emptyFlags, "STACK_PATTERN")
 	}
 
 	if config.AWSProfile == "" {
-		emptyFlags = append(emptyFlags, "awsProfile")
+		emptyFlags = append(emptyFlags, "AWS_PROFILE")
 	}
 
 	if config.AWSRegion == "" {
-		emptyFlags = append(emptyFlags, "awsRegion")
+		emptyFlags = append(emptyFlags, "AWS_REGION")
 	}
 
 	if len(emptyFlags) > 0 {
@@ -98,17 +98,17 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().String("stackPattern", "", "Pattern to match stack name e.g. 'staging-'")
-	viper.BindPFlag("stackPattern", rootCmd.PersistentFlags().Lookup("stackPattern"))
+	rootCmd.PersistentFlags().String("STACK_PATTERN", "", "Pattern to match stack name e.g. 'staging-'")
+	viper.BindPFlag("STACK_PATTERN", rootCmd.PersistentFlags().Lookup("STACK_PATTERN"))
 
-	rootCmd.PersistentFlags().String("awsRegion", "", "AWS Region where the stacks are present")
-	viper.BindPFlag("awsRegion", rootCmd.PersistentFlags().Lookup("awsRegion"))
+	rootCmd.PersistentFlags().String("AWS_REGION", "", "AWS Region where the stacks are present")
+	viper.BindPFlag("AWS_REGION", rootCmd.PersistentFlags().Lookup("AWS_REGION"))
 
-	rootCmd.PersistentFlags().String("awsProfile", "", "AWS Profile")
-	viper.BindPFlag("awsProfile", rootCmd.PersistentFlags().Lookup("awsProfile"))
+	rootCmd.PersistentFlags().String("AWS_PROFILE", "", "AWS Profile")
+	viper.BindPFlag("AWS_PROFILE", rootCmd.PersistentFlags().Lookup("AWS_PROFILE"))
 
-	rootCmd.PersistentFlags().String("roleARN", "", "Assume this role to scan and delete stacks if provided")
-	viper.BindPFlag("roleARN", rootCmd.PersistentFlags().Lookup("roleARN"))
+	rootCmd.PersistentFlags().String("ROLE_ARN", "", "Assume this role to scan and delete stacks if provided")
+	viper.BindPFlag("ROLE_ARN", rootCmd.PersistentFlags().Lookup("ROLE_ARN"))
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cfn-teardown.yaml)")
 

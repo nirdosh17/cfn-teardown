@@ -54,9 +54,9 @@ func InitiateTearDown(config Config) {
 	loading.Color("red", "bold")
 	defer loading.Stop()
 
-	s3 := S3Manager{ExpectedAccountID: config.AWSAccountId, NukeRoleARN: config.RoleARN}
-	notifier := NotificationManager{StackPattern: config.StackPattern, NotificationWebHookURL: config.NotificationWebhookURL}
-	cfn := CFNManager{StackPattern: config.StackPattern, ExpectedAccountID: config.AWSAccountId, NukeRoleARN: config.RoleARN, AWSRegion: config.AWSRegion}
+	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
+	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
+	notifier := NotificationManager{StackPattern: config.StackPattern, SlackWebHookURL: config.SlackWebhookURL}
 
 	var dependencyTree = map[string]StackDetails{}
 
@@ -76,7 +76,6 @@ func InitiateTearDown(config Config) {
 
 	TOTAL_STACK_COUNT = len(dependencyTree)
 	UpdateNukeStats(dependencyTree)
-	fmt.Printf("Total Stack Count: '%v'\n", ACTIVE_STACK_COUNT)
 
 	if ACTIVE_STACK_COUNT == 0 {
 		UpdateNukeStats(dependencyTree)
@@ -85,21 +84,25 @@ func InitiateTearDown(config Config) {
 		return
 	}
 
+	fmt.Println()
+	fmt.Println()
+	fmt.Printf("Following %v stacks are eligible for deletion:\n", ACTIVE_STACK_COUNT)
+	for stackName, _ := range dependencyTree {
+		fmt.Println(" -", stackName)
+	}
+	fmt.Println("\nCheck 'stack_teardown_details.json' file for more details.")
+
 	// safety check for accidental run
 	if config.DryRun != "false" {
-		fmt.Println("\nFollowing stacks are eligible for deletion:")
-		for stackName, _ := range dependencyTree {
-			fmt.Println(" -", stackName)
-		}
-		fmt.Println("\nCheck 'stack_teardown_details.json' file for more details.")
 		return
 	}
 
 	msg := fmt.Sprintf("Waiting for `%v minutes` before initiating deletion...", config.AbortWaitTimeMinutes)
 	notifier.StartAlert(AlertMessage{Message: msg})
+	fmt.Println()
 	fmt.Println(msg)
 	loading.Start()
-	// TODO FEATURE: Add a countdown timer
+
 	time.Sleep(time.Duration(config.AbortWaitTimeMinutes) * time.Minute)
 	fmt.Println("\n\n------------------------- Deletion Started ----------------------------------")
 	for {
@@ -112,7 +115,7 @@ func InitiateTearDown(config Config) {
 		//    2.2 Then send request to delete stack
 		//    2.3 Change stack status to DELETE_IN_PROGRESS
 		fmt.Println("\n-----------------------------------------------------------------------------")
-		fmt.Printf("Searching stacks with no importers(dependencies): %v", len(toDelete))
+		fmt.Printf("Searching stacks with no importers(dependencies): %v\n", len(toDelete))
 		for _, sName := range toDelete {
 			stack := dependencyTree[sName]
 			bktErr := deleteBucketIfPresent(sName, cfn, s3)
@@ -141,7 +144,7 @@ func InitiateTearDown(config Config) {
 
 		// 3. Wait for 30 seconds
 		fmt.Println("\n-----------------------------------------------------------------------------")
-		fmt.Printf("Waiting for %v seconds...", STACK_DELETION_WAIT_TIME_IN_SEC)
+		fmt.Printf("Waiting for %v seconds...\n", STACK_DELETION_WAIT_TIME_IN_SEC)
 		time.Sleep(time.Duration(STACK_DELETION_WAIT_TIME_IN_SEC) * time.Second)
 
 		// 4. Get list of stacks in DELETE_IN_PROGRESS and describe stack

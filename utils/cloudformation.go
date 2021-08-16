@@ -16,8 +16,7 @@ limitations under the License.
 package utils
 
 import (
-	"log"
-	"os"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -31,10 +30,11 @@ import (
 )
 
 type CFNManager struct {
-	ExpectedAccountID string
-	NukeRoleARN       string
-	StackPattern      string
-	AWSRegion         string
+	TargetAccountId string
+	NukeRoleARN     string
+	StackPattern    string
+	AWSProfile      string
+	AWSRegion       string
 }
 
 func (dm CFNManager) DescribeStack(stackName string) (*cloudformation.Stack, error) {
@@ -75,7 +75,7 @@ func (dm CFNManager) ListStackResources(stackName string) ([]*cloudformation.Sta
 	}
 
 	if err != nil {
-		log.Printf("Error listing resources of stack '%v': %v\n", stackName, err)
+		fmt.Printf("Error listing resources of stack '%v': %v\n", stackName, err)
 	}
 
 	return resp.StackResourceSummaries, err
@@ -109,7 +109,7 @@ func (dm CFNManager) ListImports(exportNames []string) (map[string]struct{}, err
 // No error means, delete request sent to cloudformation
 // If the stack we are trying to delete has already been deleted, returns success
 func (dm CFNManager) DeleteStack(stackName string) error {
-	log.Printf("Submitting delete request for stack: %v\n", stackName)
+	fmt.Printf("Submitting delete request for stack: %v\n", stackName)
 	cfn, err := dm.Session()
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func (dm CFNManager) ListEnvironmentStacks() (map[string]StackDetails, error) {
 	}
 
 	if err != nil {
-		log.Printf("Failed listing stacks with pattern: '%v', Error: '%v'\n", dm.StackPattern, err)
+		fmt.Printf("Failed listing stacks with pattern: '%v', Error: '%v'\n", dm.StackPattern, err)
 		return envStacks, err
 	}
 
@@ -180,7 +180,7 @@ func (dm CFNManager) ListEnvironmentStacks() (map[string]StackDetails, error) {
 	}
 
 	if err != nil {
-		log.Printf("Error listing '%v' environment stacks: %v\n", dm.StackPattern, err)
+		fmt.Printf("Error listing '%v' environment stacks: %v\n", dm.StackPattern, err)
 	}
 	return envStacks, err
 }
@@ -206,7 +206,7 @@ func (dm CFNManager) ListEnvironmentExports() (map[string][]string, error) {
 	}
 
 	if err != nil {
-		log.Printf("Error listing '%v' environment stack exports: %v\n", dm.StackPattern, err)
+		fmt.Printf("Error listing '%v' environment stack exports: %v\n", dm.StackPattern, err)
 		return exports, err
 	}
 
@@ -240,37 +240,36 @@ func (dm CFNManager) RegexMatch(stackName string) bool {
 // assumes staging nuke role
 func (dm CFNManager) Session() (*cloudformation.CloudFormation, error) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		Config:            aws.Config{Region: aws.String(os.Getenv("AWS_REGION"))},
+		Config:            aws.Config{Region: aws.String(dm.AWSRegion)},
 		SharedConfigState: session.SharedConfigEnable,
-		Profile:           os.Getenv("AWS_PROFILE"),
+		Profile:           dm.AWSProfile,
 	}))
 
-	isStaging, err := dm.IsDesiredAWSAccount(sess)
+	desiredAccount, err := dm.IsDesiredAWSAccount(sess)
 	if err != nil {
 		return nil, err
 	}
 
 	// to make things easy while running this script locally
-	if isStaging {
+	if desiredAccount {
 		return cloudformation.New(sess), nil
 	} else {
-		// Create the credentials from AssumeRoleProvider to assume the role referenced by the "NukeRoleARN" ARN.
+		// Create the credentials from AssumeRoleProvider if nuke role arn is provided
 		creds := stscreds.NewCredentials(sess, dm.NukeRoleARN)
 		// Create service client value configured for credentials from assumed role.
 		return cloudformation.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), nil
 	}
-
 }
 
 func (dm CFNManager) IsDesiredAWSAccount(sess *session.Session) (bool, error) {
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
-		log.Printf("Error requesting AWS caller identity: %v", err.Error())
+		fmt.Printf("Error requesting AWS caller identity: %v", err.Error())
 		return false, err
 	}
 
-	if *result.Account == dm.ExpectedAccountID {
+	if *result.Account == dm.TargetAccountId {
 		return true, err
 	}
 	return false, err

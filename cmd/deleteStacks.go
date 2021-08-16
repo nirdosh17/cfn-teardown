@@ -33,7 +33,7 @@ Example:
 If your stacks to be deleted follow this naming convention: qa-{{component name}}
 Supply stack pattern as: 'qa-'
 	`,
-	Example: "cfn-teardown deleteStacks --stackPattern='qa-' --awsProfile='staging' --region=us-east-1",
+	Example: "cfn-teardown deleteStacks --STACK_PATTERN='^qa-' --AWS_PROFILE=staging --AWS_REGION=us-east-1",
 	Args: func(cmd *cobra.Command, args []string) error {
 		// validate your arguments here
 		return validateConfigs(config)
@@ -41,6 +41,10 @@ Supply stack pattern as: 'qa-'
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Executing command: deleteStacks")
 		fmt.Println()
+		if config.DryRun != "false" {
+			fmt.Println("Running in dry run mode. Set dry run to 'false' to actually delete stacks.")
+		}
+
 		utils.InitiateTearDown(config)
 	},
 }
@@ -48,23 +52,23 @@ Supply stack pattern as: 'qa-'
 func init() {
 	rootCmd.AddCommand(deleteStacksCmd)
 
-	deleteStacksCmd.Flags().Int("stackWaitTimeSeconds", 30, "Seconds to wait after delete requests are submitted to CFN")
-	viper.BindPFlag("stackWaitTimeSeconds", deleteStacksCmd.Flags().Lookup("stackWaitTimeSeconds"))
+	deleteStacksCmd.Flags().Int("STACK_WAIT_TIME_SECONDS", 30, "Seconds to wait after delete requests are submitted to CFN")
+	viper.BindPFlag("STACK_WAIT_TIME_SECONDS", deleteStacksCmd.Flags().Lookup("STACK_WAIT_TIME_SECONDS"))
 
-	deleteStacksCmd.Flags().String("awsAccountId", "", "[Safety Check] Validates against account id in current aws session and provided ID")
-	viper.BindPFlag("awsAccountId", deleteStacksCmd.Flags().Lookup("awsAccountId"))
+	deleteStacksCmd.Flags().String("TARGET_ACCOUNT_ID", "", "[Safety Check] Confirmes that account id from aws session and intented target aws account are the same")
+	viper.BindPFlag("TARGET_ACCOUNT_ID", deleteStacksCmd.Flags().Lookup("TARGET_ACCOUNT_ID"))
 
-	deleteStacksCmd.Flags().Int("maxDeleteRetryCount", 5, "Max stack delete attempts")
-	viper.BindPFlag("maxDeleteRetryCount", deleteStacksCmd.Flags().Lookup("maxDeleteRetryCount"))
+	deleteStacksCmd.Flags().Int("MAX_DELETE_RETRY_COUNT", 5, "Max stack delete attempts")
+	viper.BindPFlag("MAX_DELETE_RETRY_COUNT", deleteStacksCmd.Flags().Lookup("MAX_DELETE_RETRY_COUNT"))
 
-	deleteStacksCmd.Flags().Int("abortWaitTimeMinutes", 10, "[Safety Check] Minutes to wait before initiating deletion")
-	viper.BindPFlag("abortWaitTimeMinutes", deleteStacksCmd.Flags().Lookup("abortWaitTimeMinutes"))
+	deleteStacksCmd.Flags().Int("ABORT_WAIT_TIME_MINUTES", 10, "[Safety Check] Minutes to wait before initiating deletion")
+	viper.BindPFlag("ABORT_WAIT_TIME_MINUTES", deleteStacksCmd.Flags().Lookup("ABORT_WAIT_TIME_MINUTES"))
 
-	deleteStacksCmd.Flags().String("notificationWebhookURL", "", "Send status alerts to Slack channel")
-	viper.BindPFlag("notificationWebhookURL", deleteStacksCmd.Flags().Lookup("notificationWebhookURL"))
+	deleteStacksCmd.Flags().String("SLACK_WEBHOOK_URL", "", "Send status alerts to Slack channel")
+	viper.BindPFlag("SLACK_WEBHOOK_URL", deleteStacksCmd.Flags().Lookup("SLACK_WEBHOOK_URL"))
 
-	deleteStacksCmd.Flags().String("dryRun", "true", "[Safety Check] To delete stacks, it needs to be explicitely set to false")
-	viper.BindPFlag("dryRun", deleteStacksCmd.Flags().Lookup("dryRun"))
+	deleteStacksCmd.Flags().String("DRY_RUN", "true", "[Safety Check] To delete stacks, it needs to be explicitely set to false")
+	viper.BindPFlag("DRY_RUN", deleteStacksCmd.Flags().Lookup("DRY_RUN"))
 
 	// Here you will define your flags and configuration settings.
 

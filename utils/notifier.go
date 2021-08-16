@@ -20,15 +20,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/nirdosh17/cfn-teardown/models"
 )
 
 type NotificationManager struct {
-	StackPattern           string
-	NotificationWebHookURL string // Webhook url is specific to channel
+	StackPattern    string
+	DryRun          string
+	SlackWebHookURL string // Webhook url is specific to channel
 }
 
 type AlertMessage struct {
@@ -275,19 +275,27 @@ func (nm NotificationManager) GenericAlert(am AlertMessage) {
 }
 
 func (nm NotificationManager) Alert(am AlertMessage) error {
+	if nm.DryRun != "false" {
+		return nil
+	}
+	if nm.SlackWebHookURL == "" {
+		// do not make api request
+		return nil
+	}
+
 	msgBody := SlackMessage{
 		Attachments: []map[string]interface{}{am.Attachment},
 	}
 
 	postBody, err := json.Marshal(msgBody)
 	if err != nil {
-		log.Printf("[Alert] Error marshaling request body: %v", err)
+		fmt.Printf("[Alert] Error marshaling request body: %v", err)
 		return err
 	}
 
-	resp, err := http.Post(nm.NotificationWebHookURL, "application/json", bytes.NewBuffer(postBody))
+	resp, err := http.Post(nm.SlackWebHookURL, "application/json", bytes.NewBuffer(postBody))
 	if err != nil {
-		log.Printf("Error posting message to Slack: %v", err)
+		fmt.Printf("Error posting message to Slack: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -295,8 +303,8 @@ func (nm NotificationManager) Alert(am AlertMessage) error {
 	//Read the response body
 	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
-		log.Printf("Got %v status code from Slack, Response body: %v\n", resp.StatusCode, string(body))
-		log.Printf("Request body: %v\n", string(postBody))
+		fmt.Printf("Got %v status code from Slack, Response body: %v\n", resp.StatusCode, string(body))
+		fmt.Printf("Request body: %v\n", string(postBody))
 		return fmt.Errorf("Failed to publish message %+v to Slack", msgBody)
 	}
 

@@ -17,8 +17,6 @@ package utils
 
 import (
 	"fmt"
-	"log"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
@@ -29,8 +27,10 @@ import (
 )
 
 type S3Manager struct {
-	ExpectedAccountID string
-	NukeRoleARN       string
+	TargetAccountId string
+	NukeRoleARN     string
+	AWSProfile      string
+	AWSRegion       string
 }
 
 func (sm S3Manager) EmptyBucket(bucketName string) error {
@@ -39,13 +39,13 @@ func (sm S3Manager) EmptyBucket(bucketName string) error {
 		return err
 	}
 
-	log.Printf("Emptying bucket '%v'...\n", bucketName)
+	fmt.Printf("Emptying bucket '%v'...\n", bucketName)
 
 	// Setup BatchDeleteIterator to iterate through a list of objects
 	iterator := s3manager.NewDeleteListIterator(svc, &s3.ListObjectsInput{Bucket: aws.String(bucketName)})
 	err = s3manager.NewBatchDeleteWithClient(svc).Delete(aws.BackgroundContext(), iterator)
 	if err != nil {
-		log.Printf("Unable to delete objects from bucket '%v': %v\n", bucketName, err)
+		fmt.Printf("Unable to delete objects from bucket '%v': %v\n", bucketName, err)
 		return err
 	}
 
@@ -61,7 +61,7 @@ func (sm S3Manager) EmptyBucket(bucketName string) error {
 		return fmt.Errorf("Failed to empty bucket. Number of items left: %v", len(resp.Contents))
 	}
 
-	log.Printf("Bucket '%v' emptied successfully\n", bucketName)
+	fmt.Printf("Bucket '%v' emptied successfully\n", bucketName)
 
 	return nil
 }
@@ -69,21 +69,21 @@ func (sm S3Manager) EmptyBucket(bucketName string) error {
 // assumes staging nuke role
 func (sm S3Manager) Session() (*s3.S3, error) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		Config:            aws.Config{Region: aws.String(os.Getenv("AWS_REGION"))},
+		Config:            aws.Config{Region: aws.String(sm.AWSRegion)},
 		SharedConfigState: session.SharedConfigEnable,
-		Profile:           os.Getenv("AWS_PROFILE"),
+		Profile:           sm.AWSProfile,
 	}))
 
-	isStaging, err := sm.IsDesiredAWSAccount(sess)
+	desiredAccount, err := sm.IsDesiredAWSAccount(sess)
 	if err != nil {
 		return nil, err
 	}
 
 	// to make things easy while running this script locally
-	if isStaging {
+	if desiredAccount {
 		return s3.New(sess), err
 	} else {
-		// Create the credentials from AssumeRoleProvider to assume the role referenced by the "NukeRoleARN" ARN.
+		// Create the credentials from AssumeRoleProvider to assume the role referenced by the "NukeROLE_ARN" ARN.
 		creds := stscreds.NewCredentials(sess, sm.NukeRoleARN)
 		// Create service client value configured for credentials from assumed role.
 		return s3.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), err
@@ -94,11 +94,11 @@ func (sm S3Manager) IsDesiredAWSAccount(sess *session.Session) (bool, error) {
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
-		log.Printf("Error requesting AWS caller identity: %v", err.Error())
+		fmt.Printf("Error requesting AWS caller identity: %v", err.Error())
 		return false, err
 	}
 
-	if *result.Account == sm.ExpectedAccountID {
+	if *result.Account == sm.TargetAccountId {
 		return true, err
 	}
 	return false, err

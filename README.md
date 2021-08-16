@@ -1,6 +1,6 @@
 # CFN Teardown
 
-CFN Teardown is a tool to delete  CloudFormation stacks respecting the stack dependencies.
+CFN Teardown is a tool to delete CloudFormation stacks respecting stack dependencies.
 
 If you deploy all of you intrastructure using CloudFormation with a `consistent naming convention` for stacks, then you can use this tool to tear down the environment.
 
@@ -42,7 +42,7 @@ go get github.com/nirdosh17/cfn-teardown
 
 ## Using CFN Teardown
 
-Required global flags for all commands: `stackPattern`, `awsRegion`, `awsProfile`
+Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROFILE`
 
 1. Run `cfn-teardown -h` and see available commands and needed parameters.
 
@@ -60,31 +60,31 @@ Required global flags for all commands: `stackPattern`, `awsRegion`, `awsProfile
 
 Configuration for this command can be set in three different ways in the precedence order defined below:
 1. Environment variables(same as flag name)
-2. Flags e.g. `cfn-teardown deleteStacks --stackPattern=qaenv-`
+2. Flags e.g. `cfn-teardown deleteStacks --STACK_PATTERN=qaenv-`
 3. Supplied YAML Config file (default: ~/.cfn-teardown.yaml)
     <details>
     <summary><b>Minimal config file</b></summary>
 
     ```yaml
-    awsRegion: us-east-1
-    awsProfile: staging
-    stackPattern: qa-
+    AWS_REGION: us-east-1
+    AWS_PROFILE: staging
+    STACK_PATTERN: qa-
     ```
     </details>
     <details>
     <summary><b>All configs present</b></summary>
 
     ```yaml
-    awsRegion: us-east-1
-    awsProfile: staging
-    awsAccountId: 121212121212
-    stackPattern: qa-
-    abortWaitTimeMinutes: 20
-    stackWaitTimeSeconds: 30
-    maxDeleteRetryCount: 5
-    notificationWebhookURL: https://hooks.slack.com/services/dummy/dummy/long_hash
-    roleARN: <arn>
-    dryRun: false
+    AWS_REGION: us-east-1
+    AWS_PROFILE: staging
+    TARGET_ACCOUNT_ID: 121212121212
+    STACK_PATTERN: qa-
+    ABORT_WAIT_TIME_MINUTES: 20
+    STACK_WAIT_TIME_SECONDS: 30
+    MAX_DELETE_RETRY_COUNT: 5
+    SLACK_WEBHOOK_URL: https://hooks.slack.com/services/dummy/dummy/long_hash
+    ROLE_ARN: "<arn>"
+    DRY_RUN: "false"
     ```
     </details>
 
@@ -160,15 +160,16 @@ By default it tries to use the IAM role of environment it is being run. e.g. Cod
 
 ## Safety Checks for Accidental Deletion
 
-- `dryRun` flag must be explicitely set to `false` to activate delete functionality
+- `DRY_RUN` flag must be explicitely set to `false` to activate delete functionality
 
-- `abortWaitTimeMinutes` flag lets us to decide how much to wait before initiating delete as you might want to confirm the stacks that are about to get deleted
+- `ABORT_WAIT_TIME_MINUTES` flag lets us to decide how much to wait before initiating delete as you might want to confirm the stacks that are about to get deleted
 
-- `awsAccountId` flag will check the supplied account id with aws session account id during runtime to confirm that we are deleting stacks in the desired non production account
+- `TARGET_ACCOUNT_ID` flag will check the supplied account id with aws session account id during runtime to confirm that we are deleting stacks in the desired aws account
 
 
 ## Edge Case
-If a stack can't be deleted from the AWS Console itself due to some dependencies, then it won't be deleted by this tool as well. In such case, manual intervention is required which is notified by this tool.
+- If a stack can't be deleted from the AWS Console itself due to some dependencies or error, then it won't be deleted by this tool as well. In such case, manual intervention is required.
+- To delete a stack with S3 bucket, this script empties the bucket first and then deletes the stack since CFN does not allow to delete stack with non-empty bucket.
 
 
 ## Caution :warning:
@@ -176,4 +177,4 @@ _With great power, comes great responsibility_
 
 - Use this tool with great caution. **Don't ever** run this in production environment with the intention of deleting a subset of stacks.
 - First try within small number of test stacks in dry run mode.
-- Use redundant safety flags `dryRun`, `awsAccountId` and `abortWaitTimeMinutes`.
+- Use redundant safety flags `DRY_RUN`, `TARGET_ACCOUNT_ID` and `ABORT_WAIT_TIME_MINUTES`.

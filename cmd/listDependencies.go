@@ -32,18 +32,19 @@ Example:
 If your stacks to be deleted follow this naming convention: qa-{{component name}}
 Supply stack pattern as: 'qa-'
 	`,
-	Example: "cfn-teardown listDependencies --stackPattern='qa-' --awsProfile='staging' --region=us-east-1",
+	Example: "cfn-teardown listDependencies --STACK_PATTERN='qa-' --AWS_PROFILE='staging' --AWS_REGION=us-east-1",
 
 	Args: func(cmd *cobra.Command, args []string) error {
 		// validate your arguments here
 		return validateConfigs(config)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println()
 		fmt.Println("Executing command: listDependencies")
 		fmt.Println()
-
 		// for safety
 		config.DryRun = "true"
+		fmt.Println("Running in dry run mode...")
 
 		utils.InitiateTearDown(config)
 	},
