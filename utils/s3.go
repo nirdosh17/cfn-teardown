@@ -83,9 +83,9 @@ func (sm S3Manager) Session() (*s3.S3, error) {
 	if desiredAccount {
 		return s3.New(sess), err
 	} else {
-		// Create the credentials from AssumeRoleProvider to assume the role referenced by the "NukeROLE_ARN" ARN.
+		// Create the credentials from AssumeRoleProvider if nuke role arn is provided
 		creds := stscreds.NewCredentials(sess, sm.NukeRoleARN)
-		// Create service client value configured for credentials from assumed role.
+		// Create service client value configured for credentials from assumed role
 		return s3.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), err
 	}
 }

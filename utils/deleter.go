@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
 	. "github.com/nirdosh17/cfn-teardown/models"
 )
 
@@ -47,23 +46,14 @@ var (
 
 // A stack is eligible for deletion when it's exports has not been imported by any other stacks
 func InitiateTearDown(config Config) {
-	loading := spinner.New(
-		spinner.CharSets[7],
-		100*time.Millisecond,
-	)
-	loading.Color("red", "bold")
-	defer loading.Stop()
-
 	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
 	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
-	notifier := NotificationManager{StackPattern: config.StackPattern, SlackWebHookURL: config.SlackWebhookURL}
+	notifier := NotificationManager{StackPattern: config.StackPattern, SlackWebHookURL: config.SlackWebhookURL, DryRun: config.DryRun}
 
 	var dependencyTree = map[string]StackDetails{}
 
 	// generate dependencies for matching stacks
-	loading.Start()
 	dt, err := prepareDependencyTree(config.StackPattern, cfn)
-	loading.Stop()
 
 	if err != nil {
 		UpdateNukeStats(dependencyTree)
@@ -79,7 +69,7 @@ func InitiateTearDown(config Config) {
 
 	if ACTIVE_STACK_COUNT == 0 {
 		UpdateNukeStats(dependencyTree)
-		fmt.Printf("Successfully deleted '%v' stacks!", TOTAL_STACK_COUNT)
+		fmt.Printf("\nNo matching stacks to delete! Stack count: %v\n", TOTAL_STACK_COUNT)
 		notifier.SuccessAlert(AlertMessage{})
 		return
 	}
@@ -101,8 +91,6 @@ func InitiateTearDown(config Config) {
 	notifier.StartAlert(AlertMessage{Message: msg})
 	fmt.Println()
 	fmt.Println(msg)
-	loading.Start()
-
 	time.Sleep(time.Duration(config.AbortWaitTimeMinutes) * time.Minute)
 	fmt.Println("\n\n------------------------- Deletion Started ----------------------------------")
 	for {
@@ -197,7 +185,7 @@ func InitiateTearDown(config Config) {
 				// removing this stack from list of importers of all stacks and updating dependency tree
 				dependencyTree = updateImporterList(sName, dependencyTree)
 				writeToJSON(config.StackPattern, dependencyTree)
-				fmt.Printf("Stack successfully deleted: %v", sName)
+				fmt.Printf("Stack successfully deleted: %v\n", sName)
 			} else {
 				if stack.DeleteAttempt >= MAX_DELETE_RETRY_COUNT {
 					stack.Status = newStatus
@@ -236,7 +224,7 @@ func InitiateTearDown(config Config) {
 		// 5. If all stacks have already been deleted, stop execution. Else Go to step 1
 		if isEnvNuked(dependencyTree) {
 			UpdateNukeStats(dependencyTree)
-			fmt.Printf("Successfully deleted '%v' stacks matching with '%v' pattern!", DELETED_STACK_COUNT, config.StackPattern)
+			fmt.Printf("\nStack Teardown Successful! Deleted Stacks: %v\n", DELETED_STACK_COUNT)
 			notifier.SuccessAlert(AlertMessage{})
 			break
 		}
