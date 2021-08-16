@@ -19,10 +19,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/gookit/color"
 	. "github.com/nirdosh17/cfn-teardown/models"
 )
 
@@ -59,7 +60,8 @@ func InitiateTearDown(config Config) {
 		UpdateNukeStats(dependencyTree)
 		msg := fmt.Sprintf("Unable to prepare dependencies. Error: %v", err.Error())
 		notifier.ErrorAlert(AlertMessage{Message: msg})
-		log.Fatal(msg)
+		color.Error.Println(msg)
+		os.Exit(1)
 	}
 	dependencyTree = dt // need to do this for global scope
 	writeToJSON(config.StackPattern, dependencyTree)
@@ -69,30 +71,29 @@ func InitiateTearDown(config Config) {
 
 	if ACTIVE_STACK_COUNT == 0 {
 		UpdateNukeStats(dependencyTree)
-		fmt.Printf("\nNo matching stacks to delete! Stack count: %v\n", TOTAL_STACK_COUNT)
+		color.Yellow.Printf("\nNo matching stacks to delete! Stack count: %v\n", TOTAL_STACK_COUNT)
 		notifier.SuccessAlert(AlertMessage{})
 		return
 	}
 
 	fmt.Println()
-	fmt.Println()
-	fmt.Printf("Following %v stacks are eligible for deletion:\n", ACTIVE_STACK_COUNT)
+	fmt.Printf("Following stacks are eligible for deletion | Stack count: %v\n", ACTIVE_STACK_COUNT)
 	for stackName, _ := range dependencyTree {
-		fmt.Println(" -", stackName)
+		color.Gray.Println(" -", stackName)
 	}
-	fmt.Println("\nCheck 'stack_teardown_details.json' file for more details.")
+	color.Style{color.Yellow, color.OpItalic}.Println("\nCheck 'stack_teardown_details.json' file for more details.")
+	fmt.Println()
 
 	// safety check for accidental run
 	if config.DryRun != "false" {
 		return
 	}
 
-	msg := fmt.Sprintf("Waiting for `%v minutes` before initiating deletion...", config.AbortWaitTimeMinutes)
+	msg := fmt.Sprintf("Waiting for `%v minutes` before starting deletion. Abort if necessary.", config.AbortWaitTimeMinutes)
 	notifier.StartAlert(AlertMessage{Message: msg})
-	fmt.Println()
-	fmt.Println(msg)
+	color.Red.Println(msg)
 	time.Sleep(time.Duration(config.AbortWaitTimeMinutes) * time.Minute)
-	fmt.Println("\n\n------------------------- Deletion Started ----------------------------------")
+	color.Green.Println("\n\n---------------------------- Deletion Started -------------------------------")
 	for {
 		// Algorithm:
 		// 1. Scan stacks who has zero importing stacks i.e. last leaf in the dependency tree
@@ -112,7 +113,8 @@ func InitiateTearDown(config Config) {
 				UpdateNukeStats(dependencyTree)
 				msg := fmt.Sprintf("Unable to empty bucket from stack '%v'", sName)
 				notifier.ErrorAlert(AlertMessage{Message: msg, FailedStack: stack})
-				log.Fatalln(msg) // abort!
+				color.Error.Println(msg)
+				os.Exit(1)
 			}
 
 			err := cfn.DeleteStack(sName)
@@ -121,7 +123,8 @@ func InitiateTearDown(config Config) {
 				msg = fmt.Sprintf("Unable to send delete request for stack '%v' Error: %v", sName, err)
 				stack.StackStatusReason = msg
 				notifier.ErrorAlert(AlertMessage{Message: msg, FailedStack: stack})
-				log.Fatalln(msg)
+				color.Error.Println(msg)
+				os.Exit(1)
 			}
 			stack.Status = DELETE_IN_PROGRESS
 			stack.DeleteStartedAt = CurrentUTCDateTime()
@@ -158,7 +161,8 @@ func InitiateTearDown(config Config) {
 					msg := fmt.Sprintf("Unable to describe stack '%v'", sName)
 					stack.StackStatusReason = msg
 					notifier.ErrorAlert(AlertMessage{Message: msg, FailedStack: stack})
-					log.Fatal(msg)
+					color.Error.Println(msg)
+					os.Exit(1)
 				}
 			}
 
@@ -198,7 +202,8 @@ func InitiateTearDown(config Config) {
 					UpdateNukeStats(dependencyTree)
 					msg := fmt.Sprintf("Failed to delete stack `%v`. Reason: %v", sName, statusReason)
 					notifier.ErrorAlert(AlertMessage{Message: msg, FailedStack: stack})
-					log.Fatal(msg)
+					color.Error.Println(msg)
+					os.Exit(1)
 				} else {
 					// In some cases cloud9 stacks can't be deleted due to security group being manually attached to other resources like elastic search or redis
 					// In such case it is better to wait for dependent resource's(mostly datastore or cache) stack and security group to get deleted and retry again
@@ -210,7 +215,8 @@ func InitiateTearDown(config Config) {
 						msg = fmt.Sprintf("Unable to send delete retry request for stack '%v' Error: %v", sName, err)
 						stack.StackStatusReason = msg
 						notifier.ErrorAlert(AlertMessage{Message: msg, FailedStack: stack})
-						log.Fatalln(msg)
+						color.Error.Println(msg)
+						os.Exit(1)
 					}
 					stack.Status = DELETE_IN_PROGRESS
 					stack.DeleteStartedAt = CurrentUTCDateTime()
@@ -224,7 +230,7 @@ func InitiateTearDown(config Config) {
 		// 5. If all stacks have already been deleted, stop execution. Else Go to step 1
 		if isEnvNuked(dependencyTree) {
 			UpdateNukeStats(dependencyTree)
-			fmt.Printf("\nStack Teardown Successful! Deleted Stacks: %v\n", DELETED_STACK_COUNT)
+			color.Green.Printf("\n---------- STACK TEARDOWN SUCCESSFUL! STACKS DELETED: (%v) ----------\n\n", DELETED_STACK_COUNT)
 			notifier.SuccessAlert(AlertMessage{})
 			break
 		}
@@ -232,9 +238,11 @@ func InitiateTearDown(config Config) {
 		// 6. Check if nuke is stuck
 		if isNukeStuck(dependencyTree) {
 			UpdateNukeStats(dependencyTree)
+			// TODO: better messaging
 			msg := "No stacks are eligible for deletion. Please find and delete stacks which do not have follow given pattern: " + config.StackPattern
 			notifier.StuckAlert(AlertMessage{Message: msg})
-			log.Fatal(msg)
+			color.Error.Println(msg)
+			os.Exit(1)
 			break
 		}
 	}
@@ -321,24 +329,25 @@ func isEnvNuked(dt map[string]StackDetails) bool {
 func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDetails, error) {
 	CFNConsoleBaseURL := "https://console.aws.amazon.com/cloudformation/home?region=" + cfn.AWSRegion + "#/stacks/stackinfo?stackId="
 
-	fmt.Printf("Listing stacks matching with '%v'...\n", envLabel)
+	fmt.Printf("-------------- Listing Stacks | Match Pattern: [%v] --------------\n", color.Gray.Render(envLabel))
+
 	dependencyTree, err := cfn.ListEnvironmentStacks()
 	totalStackCount := len(dependencyTree)
 
 	if err != nil {
 		UpdateNukeStats(dependencyTree)
-		fmt.Printf("Failed listing stacks! Error: %v\n", err)
+		color.Error.Printf("  Failed listing stacks! Error: %v\n", err)
 		return dependencyTree, err
 	}
 
-	fmt.Println("Listing all exports...")
+	color.Gray.Println("  Listing all exports...")
 	stackExports, err := cfn.ListEnvironmentExports()
 	if err != nil {
-		fmt.Printf("Failed listing exports! Error: %v", err)
+		color.Error.Printf("  Failed listing exports! Error: %v", err)
 		return dependencyTree, err
 	}
 
-	fmt.Println("Listing all imports...")
+	color.Gray.Println("  Listing all imports...")
 	stackCount := 0
 	var listImportErr error
 	for stackName, stack := range dependencyTree {
@@ -352,14 +361,14 @@ func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDet
 		// listing all importers. making single api call at a time to avoid rate limiting
 		importingStacks, listImportErr := cfn.ListImports(stack.Exports)
 		if listImportErr != nil {
-			fmt.Printf("Failed listing imports! Error: %v", listImportErr)
+			color.Error.Printf("  Failed listing imports! Error: %v", listImportErr)
 			break
 		}
 
 		stack.ActiveImporterStacks = importingStacks
 		dependencyTree[stackName] = stack
 		stackCount++
-		fmt.Println("Listing imports | ", stackCount, "/", totalStackCount, " stacks complete")
+		color.Gray.Println("  Listing imports | ", stackCount, "/", totalStackCount, " stacks complete")
 	}
 
 	if listImportErr != nil {
@@ -379,7 +388,7 @@ func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDet
 			if err != nil {
 				dne := strings.Contains(err.Error(), "does not exist")
 				if !dne {
-					fmt.Printf("Error describing stack %v", mStk)
+					color.Error.Printf("  Error describing stack %v", mStk)
 					break // real error.
 				}
 				dependencyTree[mStk] = StackDetails{
@@ -397,7 +406,7 @@ func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDet
 				// list imports
 				importingStacks, listImportErr := cfn.ListImports(exports)
 				if listImportErr != nil {
-					fmt.Println("Failed listing imports!")
+					color.Error.Println("  Failed listing imports!")
 					break
 				}
 

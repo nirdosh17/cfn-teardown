@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/gookit/color"
 	"github.com/nirdosh17/cfn-teardown/utils"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ Supply stack pattern as: 'qa-'
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println()
-		fmt.Println("Executing command: listDependencies")
+		color.Green.Println("Executing command: listDependencies")
 		fmt.Println()
 		// for safety
 		config.DryRun = "true"

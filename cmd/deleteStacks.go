@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/gookit/color"
 	"github.com/nirdosh17/cfn-teardown/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -39,7 +40,7 @@ Supply stack pattern as: 'qa-'
 		return validateConfigs(config)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Executing command: deleteStacks")
+		color.Red.Println("Executing command: deleteStacks")
 		fmt.Println()
 		if config.DryRun != "false" {
 			fmt.Println("Running in dry run mode. Set dry run to 'false' to actually delete stacks.")
