@@ -15,18 +15,16 @@ CFN Teardown is a tool to delete matching CloudFormation stacks respecting stack
 - Supports slack notification for deletion status updates via webhook.
  
 
-
 ---
 
 ### Install
-
+Run downloader script:
 ```bash
-
-go get github.com/nirdosh17/cfn-teardown
-
+curl -f https://raw.githubusercontent.com/nirdosh17/cfn-teardown/master/download.sh | sh
 ```
+OR
 
-**OR** download binary from [HERE](https://github.com/nirdosh17/cfn-teardown/releases)
+Download binary manually from [HERE](https://github.com/nirdosh17/cfn-teardown/releases).
 
 
 ### Usage
