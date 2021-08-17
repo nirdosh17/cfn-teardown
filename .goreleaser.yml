@@ -1,10 +1,14 @@
 # For more info about this file, check the documentation at http://goreleaser.com
+release:
+  github:
+    owner: nirdosh17/cfn-teardown
 before:
   hooks:
     - go mod download
+    - go generate ./...
 builds:
   - ldflags:
-    - -X "github.com/nirdosh17/cfn-teardown/cmd.Version={{ .Tag }}"
+    - -s -w -X "github.com/nirdosh17/cfn-teardown/cmd.Version={{ .Tag }}"
     env:
       - CGO_ENABLED=0
     binary: cfn-teardown
