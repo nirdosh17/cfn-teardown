@@ -1,29 +1,20 @@
 # CFN Teardown
 
-CFN Teardown is a tool to delete CloudFormation stacks respecting stack dependencies.
-
-If you deploy all of you intrastructure using CloudFormation with a `consistent naming convention` for stacks, then you can use this tool to tear down the environment.
-
-**Example of consistent stack naming:**
-
-- qa-bucket-users
-- qa-service-user-management
-- qa-service-user-search
-
-You can supply stack pattern as `qa-` in this tool to delete these stacks.
-
+CFN Teardown is a tool to delete matching CloudFormation stacks respecting stack dependencies.
 
 ## Features
 
-- Matches stack pattern and builds dependency tree for intelligent/faster teardown.
+- Stack name pattern matching for deletion.
 
-- Stack dependencies are respected during deletion. No brute force strategy.
+- Generates stack dependencies in a file from which shows how loosely or tighly coupled the stacks are. 
+
+- Builds dependency tree for intelligent/faster teardown.
 
 - Multiple safety checks to prevent accidental deletion.
 
-- Generates `stack_teardown_details.json` listing stack dependencies which can be watched live to get an idea of how the script is working. It contains useful details like time taken to delete each stacks, delete attempts, failure reason and many more.
-
 - Supports slack notification for deletion status updates via webhook.
+ 
+
 
 ---
 
@@ -38,8 +29,16 @@ go get github.com/nirdosh17/cfn-teardown
 **OR** download binary from [HERE](https://github.com/nirdosh17/cfn-teardown/releases)
 
 
+### Usage
+If you deploy all of you intrastructure using CloudFormation with a `consistent naming convention` for stacks, then you can use this tool to tear down the environment.
 
-### Using CFN Teardown
+**Example of consistent stack naming:**
+
+- qa-bucket-users
+- qa-service-user-management
+- qa-service-user-search
+
+You can supply stack pattern as `qa-` in this tool to delete these stacks.
 
 Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROFILE`
 
@@ -95,12 +94,11 @@ cfn-teardown listDependencies --help
 cfn-teardown deleteStacks --help
 ```
 
-### How it works?
+### Algorithm
 
-1. Scans all stacks in your account.
+1. Finds matching stacks based on the regex provided
 
-2. Prepares of list of stack with their dependencies.
-
+2. Prepares stack dependencies
     <details>
     <summary><b>It looks something like this:</b></summary>
 
@@ -141,15 +139,18 @@ cfn-teardown deleteStacks --help
       ```
     </details>
 
-3. Alerts slack channel(if provided) and waits for the specified time before initiating deletion. If wait time is not provided, it starts deleting stacks immediately.
+3. Alerts slack channel(if provided) and waits before initiating deletion. Starts deletion immediately if no wait time is provided.
 
-4. Finds stacks which are eligible for deletion. Eligibility criteria is that the stack shouldn't have it's exports imported by any other stacks. In simple terms, it should have no dependencies.
+4. Selects stacks which are eligible for deletion. A stack is eligible for deletion if it's exports are imported by no other stacks. In simple terms, it should have no dependencies.
 
-5. Initiates delete requests concurrently for eligible stacks.
+5. Initiates delete requests concurrently for all selected stacks.
 
-6. Waits for 30 seconds(can be configurable) before scanning eligible stacks again. Checks If the stack has been already deleted and if deleted updates stack stack in the dependency tree.
-
-
+6. Waits for 30 seconds(configurable) before scanning eligible stacks again. Checks If the stack has been already deleted and if deleted updates stack status in the dependency tree.
+	
+7. This process (sending delete requests, waiting, checking stack status) is repeated until all stacks have status `DELETE_COMPLETE`.
+	
+8. If a stack is not deleted even after exhausting all retries(default 5), teardown is halted and manual intervention is requested.
+	
 
 ### Assume Role
 
