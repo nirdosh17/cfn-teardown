@@ -4,8 +4,6 @@ CFN Teardown is a tool to delete CloudFormation stacks respecting stack dependen
 
 If you deploy all of you intrastructure using CloudFormation with a `consistent naming convention` for stacks, then you can use this tool to tear down the environment.
 
-Teardown of huge number of stacks using this tool is considerably faster that applying brute force.
-
 **Example of consistent stack naming:**
 
 - qa-bucket-users
@@ -23,12 +21,13 @@ You can supply stack pattern as `qa-` in this tool to delete these stacks.
 
 - Multiple safety checks to prevent accidental deletion.
 
-- Generates a file `stack_teardown_details` listing stack dependencies which can be watched live to get an idea of how the script is working. It contains useful details like time taken to delete each stacks, delete attempts, failure reason and many more.
+- Generates `stack_teardown_details.json` listing stack dependencies which can be watched live to get an idea of how the script is working. It contains useful details like time taken to delete each stacks, delete attempts, failure reason and many more.
 
-- Supports slack notification via webhook.
+- Supports slack notification for deletion status updates via webhook.
 
+---
 
-## Install
+### Install
 
 ```bash
 
@@ -40,7 +39,7 @@ go get github.com/nirdosh17/cfn-teardown
 
 
 
-## Using CFN Teardown
+### Using CFN Teardown
 
 Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROFILE`
 
@@ -56,7 +55,7 @@ Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROF
 
 
 
-## Configuration
+### Configuration
 
 Configuration for this command can be set in three different ways in the precedence order defined below:
 1. Environment variables(same as flag name)
@@ -96,7 +95,7 @@ cfn-teardown listDependencies --help
 cfn-teardown deleteStacks --help
 ```
 
-## How it works?
+### How it works?
 
 1. Scans all stacks in your account.
 
@@ -152,13 +151,12 @@ cfn-teardown deleteStacks --help
 
 
 
-## Assume Role
+### Assume Role
 
-By default it tries to use the IAM role of environment it is being run. e.g. Codebuild, EC2 instance. We can also supply role arn if we want the script to assume a different role.
+By default it tries to use the IAM role of environment it is currently running in. But we can also supply role arn if we want the script to assume a different role.
 
 
-
-## Safety Checks for Accidental Deletion
+### Safety Checks for Accidental Deletion
 
 - `DRY_RUN` flag must be explicitely set to `false` to activate delete functionality
 
@@ -167,14 +165,11 @@ By default it tries to use the IAM role of environment it is being run. e.g. Cod
 - `TARGET_ACCOUNT_ID` flag will check the supplied account id with aws session account id during runtime to confirm that we are deleting stacks in the desired aws account
 
 
-## Edge Case
-- If a stack can't be deleted from the AWS Console itself due to some dependencies or error, then it won't be deleted by this tool as well. In such case, manual intervention is required.
-- To delete a stack with S3 bucket, this script empties the bucket first and then deletes the stack since CFN does not allow to delete stack with non-empty bucket.
+### Limitation
+If a stack can't be deleted from the AWS Console itself due to some dependencies or error, then it won't be deleted by this tool as well. In such case, manual intervention is required.
 
-
-## Caution :warning:
+---
+### Caution :warning:
 _With great power, comes great responsibility_
-
-- Use this tool with great caution. **Don't ever** run this in production environment with the intention of deleting a subset of stacks.
 - First try within small number of test stacks in dry run mode.
 - Use redundant safety flags `DRY_RUN`, `TARGET_ACCOUNT_ID` and `ABORT_WAIT_TIME_MINUTES`.
