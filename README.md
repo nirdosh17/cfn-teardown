@@ -6,27 +6,25 @@ CFN Teardown is a tool to delete matching CloudFormation stacks respecting stack
 
 - Stack name pattern matching for deletion.
 
-- Generates stack dependencies in a file from which shows how loosely or tighly coupled the stacks are. 
+- Generates stack dependencies in a file from which shows how loosely or tighly coupled the stacks are.
 
 - Builds dependency tree for intelligent/faster teardown.
 
 - Multiple safety checks to prevent accidental deletion.
 
 - Supports slack notification for deletion status updates via webhook.
- 
 
 
 ---
 
 ### Install
-
+Run downloader script:
 ```bash
-
-go get github.com/nirdosh17/cfn-teardown
-
+curl -f https://raw.githubusercontent.com/nirdosh17/cfn-teardown/master/download.sh | sh
 ```
+OR
 
-**OR** download binary from [HERE](https://github.com/nirdosh17/cfn-teardown/releases)
+Download binary manually from [HERE](https://github.com/nirdosh17/cfn-teardown/releases).
 
 
 ### Usage
@@ -86,19 +84,14 @@ Configuration for this command can be set in three different ways in the precede
     ```
     </details>
 
-See Available configurations via:
+See available configurations via: `cfn-teardown <command> --help`
 
-```bash
-cfn-teardown --help
-cfn-teardown listDependencies --help
-cfn-teardown deleteStacks --help
-```
 
-### Algorithm
+### Stack Teardown Strategy
 
-1. Finds matching stacks based on the regex provided
+1. Find matching stacks based on the regex provided
 
-2. Prepares stack dependencies
+2. Prepare stack dependencies
     <details>
     <summary><b>It looks something like this:</b></summary>
 
@@ -139,23 +132,22 @@ cfn-teardown deleteStacks --help
       ```
     </details>
 
-3. Alerts slack channel(if provided) and waits before initiating deletion. Starts deletion immediately if no wait time is provided.
+3. Alert slack channel(if provided) and waits before initiating deletion. Starts deletion immediately if no wait time is provided.
 
-4. Selects stacks which are eligible for deletion. A stack is eligible for deletion if it's exports are imported by no other stacks. In simple terms, it should have no dependencies.
+4. Select stacks which are eligible for deletion. A stack is eligible for deletion if it's exports are imported by no other stacks. In simple terms, it should have no dependencies.
 
-5. Initiates delete requests concurrently for all selected stacks.
+5. Send delete requests for all selected stacks.
 
-6. Waits for 30 seconds(configurable) before scanning eligible stacks again. Checks If the stack has been already deleted and if deleted updates stack status in the dependency tree.
-	
+6. Wait for 30 seconds(configurable) before scanning eligible stacks again. Checks If the stack has been already deleted and if deleted updates stack status in the dependency tree.
+
 7. This process (sending delete requests, waiting, checking stack status) is repeated until all stacks have status `DELETE_COMPLETE`.
-	
+
 8. If a stack is not deleted even after exhausting all retries(default 5), teardown is halted and manual intervention is requested.
-	
+
 
 ### Assume Role
 
 By default it tries to use the IAM role of environment it is currently running in. But we can also supply role arn if we want the script to assume a different role.
-
 
 ### Safety Checks for Accidental Deletion
 
@@ -163,7 +155,7 @@ By default it tries to use the IAM role of environment it is currently running i
 
 - `ABORT_WAIT_TIME_MINUTES` flag lets us to decide how much to wait before initiating delete as you might want to confirm the stacks that are about to get deleted
 
-- `TARGET_ACCOUNT_ID` flag will check the supplied account id with aws session account id during runtime to confirm that we are deleting stacks in the desired aws account
+- `TARGET_ACCOUNT_ID`: If provided, this flag confirms that the given aws account id matches with account id in the aws session during runtime to make sure that we are deleting stacks in the desired aws account
 
 
 ### Limitation
