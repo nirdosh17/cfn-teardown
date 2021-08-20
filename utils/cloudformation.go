@@ -245,13 +245,25 @@ func (dm CFNManager) Session() (*cloudformation.CloudFormation, error) {
 		Profile:           dm.AWSProfile,
 	}))
 
-	desiredAccount, err := dm.IsDesiredAWSAccount(sess)
-	if err != nil {
-		return nil, err
+	// validation for target account id
+	if dm.TargetAccountId != "" {
+		aID, err := dm.AWSSessionAccountID(sess)
+		if err != nil {
+			fmt.Printf("Error requesting AWS caller identity: %v", err.Error())
+			return nil, err
+		}
+
+		if aID != dm.TargetAccountId {
+			return nil, fmt.Errorf(
+				"[CFN] Target account id (%v) did not match with account id (%v) in the current AWS session",
+				dm.TargetAccountId,
+				aID,
+			)
+		}
 	}
 
-	// to make things easy while running this script locally
-	if desiredAccount {
+	if dm.NukeRoleARN == "" {
+		// this means, we are using given aws profile
 		return cloudformation.New(sess), nil
 	} else {
 		// Create the credentials from AssumeRoleProvider if nuke role arn is provided
@@ -261,16 +273,13 @@ func (dm CFNManager) Session() (*cloudformation.CloudFormation, error) {
 	}
 }
 
-func (dm CFNManager) IsDesiredAWSAccount(sess *session.Session) (bool, error) {
+func (dm CFNManager) AWSSessionAccountID(sess *session.Session) (acID string, err error) {
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		fmt.Printf("Error requesting AWS caller identity: %v", err.Error())
-		return false, err
+		return
 	}
-
-	if *result.Account == dm.TargetAccountId {
-		return true, err
-	}
-	return false, err
+	acID = *result.Account
+	return
 }

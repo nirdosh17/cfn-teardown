@@ -74,32 +74,41 @@ func (sm S3Manager) Session() (*s3.S3, error) {
 		Profile:           sm.AWSProfile,
 	}))
 
-	desiredAccount, err := sm.IsDesiredAWSAccount(sess)
-	if err != nil {
-		return nil, err
+	// validation for target account id
+	if sm.TargetAccountId != "" {
+		aID, err := sm.AWSSessionAccountID(sess)
+		if err != nil {
+			fmt.Printf("Error requesting AWS caller identity: %v", err.Error())
+			return nil, err
+		}
+
+		if aID != sm.TargetAccountId {
+			return nil, fmt.Errorf(
+				"[S3] Target account id (%v) did not match with account id (%v) in the current AWS session",
+				sm.TargetAccountId,
+				aID,
+			)
+		}
 	}
 
-	// to make things easy while running this script locally
-	if desiredAccount {
-		return s3.New(sess), err
+	if sm.NukeRoleARN == "" {
+		// this means, we are using given aws profile
+		return s3.New(sess), nil
 	} else {
 		// Create the credentials from AssumeRoleProvider if nuke role arn is provided
 		creds := stscreds.NewCredentials(sess, sm.NukeRoleARN)
 		// Create service client value configured for credentials from assumed role
-		return s3.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), err
+		return s3.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), nil
 	}
 }
 
-func (sm S3Manager) IsDesiredAWSAccount(sess *session.Session) (bool, error) {
+func (sm S3Manager) AWSSessionAccountID(sess *session.Session) (acID string, err error) {
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		fmt.Printf("Error requesting AWS caller identity: %v", err.Error())
-		return false, err
+		return
 	}
-
-	if *result.Account == sm.TargetAccountId {
-		return true, err
-	}
-	return false, err
+	acID = *result.Account
+	return
 }
