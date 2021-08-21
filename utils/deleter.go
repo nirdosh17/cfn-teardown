@@ -31,20 +31,34 @@ import (
 
 // -------------- configs ---------------
 const (
-	STACK_DELETION_WAIT_TIME_IN_SEC int16 = 30 // STACK_DELETION_WAIT_TIME_IN_SEC is the time to wait for stacks before peforming status checks after delete requests have been sent.
-	MAX_DELETE_RETRY_COUNT          int16 = 5  // MAX_DELETE_RETRY_COUNT specifies the number of times we should retry deleting a stack before giving up.
+	// STACK_DELETION_WAIT_TIME_IN_SEC is the time to wait for stacks before peforming status checks after delete requests have been sent.
+	STACK_DELETION_WAIT_TIME_IN_SEC int16 = 30
+
+	// MAX_DELETE_RETRY_COUNT specifies the number of times we should retry deleting a stack before giving up.
+	MAX_DELETE_RETRY_COUNT int16 = 5
 )
 
 var (
-	NUKE_START_TIME       = CurrentUTCDateTime() // NUKE_START_TIME is the start timestamp of teardown.
-	NUKE_END_TIME         = CurrentUTCDateTime() // NUKE_END_TIME is the end timestamp of teardown.
-	AWS_SDK_MAX_RETRY int = 5                    // AWS_SDK_MAX_RETRY is max retry count for AWS SDK.
+	// NUKE_START_TIME is the start timestamp of teardown.
+	NUKE_START_TIME = CurrentUTCDateTime()
 
-	// stats
-	TOTAL_STACK_COUNT    int     // TOTAL_STACK_COUNT is the number of stacks found to be eligible for deletion/
-	DELETED_STACK_COUNT  int     // DELETED_STACK_COUNT is the number of stacks deleted so far.
-	ACTIVE_STACK_COUNT   int     // ACTIVE_STACK_COUNT is the number of stacks yet to be deleted or in the process of being deleted.
-	NUKE_DURATION_IN_HRS float64 // NUKE_DURATION_IN_HRS is the total run time of teardown until now.
+	// NUKE_END_TIME is the end timestamp of teardown.
+	NUKE_END_TIME = CurrentUTCDateTime()
+
+	// AWS_SDK_MAX_RETRY is max retry count for AWS SDK.
+	AWS_SDK_MAX_RETRY int = 5
+
+	// TOTAL_STACK_COUNT is the number of stacks found to be eligible for deletion.
+	TOTAL_STACK_COUNT int
+
+	// DELETED_STACK_COUNT is the number of stacks deleted so far.
+	DELETED_STACK_COUNT int
+
+	// ACTIVE_STACK_COUNT is the number of stacks yet to be deleted or in the process of being deleted.
+	ACTIVE_STACK_COUNT int
+
+	// NUKE_DURATION_IN_HRS is the total run time of teardown until now.
+	NUKE_DURATION_IN_HRS float64
 )
 
 // InitiateTearDown scans and deletes cloudformation stacks respecting the dependencies.

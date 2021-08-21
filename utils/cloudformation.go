@@ -125,7 +125,7 @@ func (dm CFNManager) DeleteStack(stackName string) error {
 	_, err = cfn.DeleteStack(&input)
 
 	// No error only means that the delete request was sent
-	// It does not gurantee that the stack will be deleted
+	// It does not guarantee that the stack will be deleted
 	return err
 }
 
