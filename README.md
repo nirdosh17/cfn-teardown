@@ -1,8 +1,8 @@
-# CFN Teardown
 [![Go Report Card](https://goreportcard.com/badge/github.com/nirdosh17/cfn-teardown)](https://goreportcard.com/report/github.com/nirdosh17/cfn-teardown)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/nirdosh17/cfn-teardown/blob/main/LICENSE)
 ![Latest GitHub Release](https://img.shields.io/github/release/nirdosh17/cfn-teardown)
 
+# CFN Teardown
 CFN Teardown is a tool to delete matching CloudFormation stacks respecting stack dependencies.
 
 ## Features
@@ -162,7 +162,7 @@ By default it tries to use the IAM role of environment it is currently running i
 
 ### Limitation
 If a stack can't be deleted from the AWS Console itself due to some dependencies or error, then it won't be deleted by this tool as well. In such case, manual intervention is required.
-	
+
 ### Demo
 https://user-images.githubusercontent.com/5920689/130267973-df7e83d4-ae07-4037-a079-95595a5a413d.mp4
 

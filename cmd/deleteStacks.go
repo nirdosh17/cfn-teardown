@@ -58,7 +58,7 @@ func init() {
 	deleteStacksCmd.Flags().Int("STACK_WAIT_TIME_SECONDS", 30, "Seconds to wait after delete requests are submitted to CFN")
 	viper.BindPFlag("STACK_WAIT_TIME_SECONDS", deleteStacksCmd.Flags().Lookup("STACK_WAIT_TIME_SECONDS"))
 
-	deleteStacksCmd.Flags().String("TARGET_ACCOUNT_ID", "", "[Safety Check] Confirmes that account id from aws session and intented target aws account are the same")
+	deleteStacksCmd.Flags().String("TARGET_ACCOUNT_ID", "", "[Safety Check] Confirmes that account id from aws session and intended target aws account are the same")
 	viper.BindPFlag("TARGET_ACCOUNT_ID", deleteStacksCmd.Flags().Lookup("TARGET_ACCOUNT_ID"))
 
 	deleteStacksCmd.Flags().Int("MAX_DELETE_RETRY_COUNT", 5, "Max stack delete attempts")
@@ -70,7 +70,7 @@ func init() {
 	deleteStacksCmd.Flags().String("SLACK_WEBHOOK_URL", "", "Send status alerts to Slack channel")
 	viper.BindPFlag("SLACK_WEBHOOK_URL", deleteStacksCmd.Flags().Lookup("SLACK_WEBHOOK_URL"))
 
-	deleteStacksCmd.Flags().String("DRY_RUN", "true", "[Safety Check] To delete stacks, it needs to be explicitely set to false")
+	deleteStacksCmd.Flags().String("DRY_RUN", "true", "[Safety Check] To delete stacks, it needs to be explicitly set to false")
 	viper.BindPFlag("DRY_RUN", deleteStacksCmd.Flags().Lookup("DRY_RUN"))
 
 	// Here you will define your flags and configuration settings.
