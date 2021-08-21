@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package cmd provides interface to register and define actions for all cli commands
 package cmd
 
 import (
@@ -21,6 +23,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is the current CLI version.
+// This is overwrriten by semantic version tag while building binaries.
 var Version = "development"
 
 // versionCmd represents the version command

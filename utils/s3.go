@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package utils provides cli specifics methods for interacting with AWS services
 package utils
 
 import (
@@ -26,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 )
 
+// S3Manager exposes methods to interact with AWS S3 service via SDK.
 type S3Manager struct {
 	TargetAccountId string
 	NukeRoleARN     string
@@ -33,6 +36,7 @@ type S3Manager struct {
 	AWSRegion       string
 }
 
+// EmptyBucket deletes all objects from a particular S3 bucket.
 func (sm S3Manager) EmptyBucket(bucketName string) error {
 	svc, err := sm.Session()
 	if err != nil {
@@ -66,7 +70,9 @@ func (sm S3Manager) EmptyBucket(bucketName string) error {
 	return nil
 }
 
-// assumes staging nuke role
+// Session creates a new aws S3 session.
+// By default, it uses given aws profile and region but it also provides option to assume a different role.
+// It also has validation for target account id to ensure we are deleting in the correct aws account.
 func (sm S3Manager) Session() (*s3.S3, error) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Config:            aws.Config{Region: aws.String(sm.AWSRegion)},
@@ -94,14 +100,15 @@ func (sm S3Manager) Session() (*s3.S3, error) {
 	if sm.NukeRoleARN == "" {
 		// this means, we are using given aws profile
 		return s3.New(sess), nil
-	} else {
-		// Create the credentials from AssumeRoleProvider if nuke role arn is provided
-		creds := stscreds.NewCredentials(sess, sm.NukeRoleARN)
-		// Create service client value configured for credentials from assumed role
-		return s3.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), nil
 	}
+
+	// Create the credentials from AssumeRoleProvider if nuke role arn is provided
+	creds := stscreds.NewCredentials(sess, sm.NukeRoleARN)
+	// Create service client value configured for credentials from assumed role
+	return s3.New(sess, &aws.Config{Credentials: creds, MaxRetries: &AWS_SDK_MAX_RETRY}), nil
 }
 
+// AWSSessionAccountID fetches account id from current aws session
 func (sm S3Manager) AWSSessionAccountID(sess *session.Session) (acID string, err error) {
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})

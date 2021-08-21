@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package utils provides cli specifics methods for interacting with AWS services
 package utils
 
 import (
@@ -24,34 +26,35 @@ import (
 	"time"
 
 	"github.com/gookit/color"
-	. "github.com/nirdosh17/cfn-teardown/models"
+	"github.com/nirdosh17/cfn-teardown/models"
 )
 
 // -------------- configs ---------------
 const (
-	STACK_DELETION_WAIT_TIME_IN_SEC int16 = 30
-	MAX_DELETE_RETRY_COUNT          int16 = 5
+	STACK_DELETION_WAIT_TIME_IN_SEC int16 = 30 // STACK_DELETION_WAIT_TIME_IN_SEC is the time to wait for stacks before peforming status checks after delete requests have been sent.
+	MAX_DELETE_RETRY_COUNT          int16 = 5  // MAX_DELETE_RETRY_COUNT specifies the number of times we should retry deleting a stack before giving up.
 )
 
 var (
-	NUKE_START_TIME       = CurrentUTCDateTime()
-	NUKE_END_TIME         = CurrentUTCDateTime()
-	AWS_SDK_MAX_RETRY int = 5
+	NUKE_START_TIME       = CurrentUTCDateTime() // NUKE_START_TIME is the start timestamp of teardown.
+	NUKE_END_TIME         = CurrentUTCDateTime() // NUKE_END_TIME is the end timestamp of teardown.
+	AWS_SDK_MAX_RETRY int = 5                    // AWS_SDK_MAX_RETRY is max retry count for AWS SDK.
 
 	// stats
-	TOTAL_STACK_COUNT    int
-	DELETED_STACK_COUNT  int
-	ACTIVE_STACK_COUNT   int
-	NUKE_DURATION_IN_HRS float64
+	TOTAL_STACK_COUNT    int     // TOTAL_STACK_COUNT is the number of stacks found to be eligible for deletion/
+	DELETED_STACK_COUNT  int     // DELETED_STACK_COUNT is the number of stacks deleted so far.
+	ACTIVE_STACK_COUNT   int     // ACTIVE_STACK_COUNT is the number of stacks yet to be deleted or in the process of being deleted.
+	NUKE_DURATION_IN_HRS float64 // NUKE_DURATION_IN_HRS is the total run time of teardown until now.
 )
 
-// A stack is eligible for deletion when it's exports has not been imported by any other stacks
-func InitiateTearDown(config Config) {
+// InitiateTearDown scans and deletes cloudformation stacks respecting the dependencies.
+// A stack is eligible for deletion when it's exports has not been imported by any other stacks.
+func InitiateTearDown(config models.Config) {
 	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
 	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
 	notifier := NotificationManager{StackPattern: config.StackPattern, SlackWebHookURL: config.SlackWebhookURL, DryRun: config.DryRun}
 
-	var dependencyTree = map[string]StackDetails{}
+	var dependencyTree = map[string]models.StackDetails{}
 
 	// generate dependencies for matching stacks
 	dt, err := prepareDependencyTree(config.StackPattern, cfn)
@@ -78,7 +81,7 @@ func InitiateTearDown(config Config) {
 
 	fmt.Println()
 	fmt.Printf("Following stacks are eligible for deletion | Stack count: %v\n", ACTIVE_STACK_COUNT)
-	for stackName, _ := range dependencyTree {
+	for stackName := range dependencyTree {
 		color.Gray.Println(" -", stackName)
 	}
 	color.Style{color.Yellow, color.OpItalic}.Println("\nCheck 'stack_teardown_details.json' file for more details.")
@@ -126,7 +129,7 @@ func InitiateTearDown(config Config) {
 				color.Error.Println(msg)
 				os.Exit(1)
 			}
-			stack.Status = DELETE_IN_PROGRESS
+			stack.Status = models.DELETE_IN_PROGRESS
 			stack.DeleteStartedAt = CurrentUTCDateTime()
 			stack.DeleteAttempt = stack.DeleteAttempt + 1
 			dependencyTree[sName] = stack
@@ -169,15 +172,15 @@ func InitiateTearDown(config Config) {
 			var newStatus string
 			// does not exist means the stack was deleted
 			if dne {
-				newStatus = DELETE_COMPLETE
+				newStatus = models.DELETE_COMPLETE
 			} else {
 				newStatus = *details.StackStatus
 			}
 
-			if newStatus == DELETE_IN_PROGRESS {
+			if newStatus == models.DELETE_IN_PROGRESS {
 				// skip now. check again later
 				continue
-			} else if newStatus == DELETE_COMPLETE {
+			} else if newStatus == models.DELETE_COMPLETE {
 				// update local copy
 				stack.Status = newStatus
 				stack.DeleteCompletedAt = CurrentUTCDateTime()
@@ -218,7 +221,7 @@ func InitiateTearDown(config Config) {
 						color.Error.Println(msg)
 						os.Exit(1)
 					}
-					stack.Status = DELETE_IN_PROGRESS
+					stack.Status = models.DELETE_IN_PROGRESS
 					stack.DeleteStartedAt = CurrentUTCDateTime()
 					stack.DeleteAttempt = newDeleteAttempt
 					dependencyTree[sName] = stack
@@ -248,9 +251,9 @@ func InitiateTearDown(config Config) {
 	}
 }
 
-// when a stack is deleted, we can safely remove it from list of importers
-//    so that the parent stack is free of dependencies and becomes eligible for deletion in the next cycle
-func updateImporterList(deletedStackName string, dt map[string]StackDetails) map[string]StackDetails {
+// When a stack is deleted, we can safely remove it from list of importers
+// so that the parent stack is free of dependencies and becomes eligible for deletion in the next cycle.
+func updateImporterList(deletedStackName string, dt map[string]models.StackDetails) map[string]models.StackDetails {
 	for _, stackDetails := range dt {
 		importers := stackDetails.ActiveImporterStacks
 		delete(importers, deletedStackName)
@@ -259,6 +262,7 @@ func updateImporterList(deletedStackName string, dt map[string]StackDetails) map
 	return dt
 }
 
+// In order to a stack with S3 bucket, we need to empty it first which is done by this method.
 func deleteBucketIfPresent(stackName string, cfn CFNManager, s3 S3Manager) error {
 	resources, _ := cfn.ListStackResources(stackName)
 
@@ -283,20 +287,21 @@ func deleteBucketIfPresent(stackName string, cfn CFNManager, s3 S3Manager) error
 	return objDeleteError
 }
 
-func isNukeStuck(dt map[string]StackDetails) bool {
+// In some cases, there could be no stacks which are eligible for deletion. This can happen due to cyclic dependency. In such case, we abort nuke and notify the user for manual intervention.
+func isNukeStuck(dt map[string]models.StackDetails) bool {
 	if len(deleteInProgressStacks(dt)) == 0 && len(stacksEligibleToDelete(dt)) == 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
-func stacksEligibleToDelete(dt map[string]StackDetails) []string {
+// stacksEligibleToDelete selects stacks for deletion which have no dependencies
+func stacksEligibleToDelete(dt map[string]models.StackDetails) []string {
 	deleteReady := []string{}
 	for stackName, stackDetails := range dt {
 		if len(stackDetails.ActiveImporterStacks) == 0 {
 			// not filtering out delete failed here as it is being handled in main.go
-			if stackDetails.Status != DELETE_COMPLETE && stackDetails.Status != DELETE_IN_PROGRESS {
+			if stackDetails.Status != models.DELETE_COMPLETE && stackDetails.Status != models.DELETE_IN_PROGRESS {
 				deleteReady = append(deleteReady, stackName)
 			}
 		}
@@ -304,21 +309,21 @@ func stacksEligibleToDelete(dt map[string]StackDetails) []string {
 	return deleteReady
 }
 
-func deleteInProgressStacks(dt map[string]StackDetails) []string {
+func deleteInProgressStacks(dt map[string]models.StackDetails) []string {
 	dip := []string{}
 	for stackName, stackDetails := range dt {
-		if stackDetails.Status == DELETE_IN_PROGRESS {
+		if stackDetails.Status == models.DELETE_IN_PROGRESS {
 			dip = append(dip, stackName)
 		}
 	}
 	return dip
 }
 
-// all stacks have status DELETE_COMPLETE
-func isEnvNuked(dt map[string]StackDetails) bool {
+// isEnvNuked checks if all stacks have status DELETE_COMPLETE to mark the end of teardown
+func isEnvNuked(dt map[string]models.StackDetails) bool {
 	nuked := true
 	for _, stackDetails := range dt {
-		if stackDetails.Status != DELETE_COMPLETE {
+		if stackDetails.Status != models.DELETE_COMPLETE {
 			nuked = false
 			break
 		}
@@ -326,7 +331,8 @@ func isEnvNuked(dt map[string]StackDetails) bool {
 	return nuked
 }
 
-func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDetails, error) {
+// prepareDependencyTree generates list of stacks and their dependencies which is useful to determine the order of deletion
+func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]models.StackDetails, error) {
 	CFNConsoleBaseURL := "https://console.aws.amazon.com/cloudformation/home?region=" + cfn.AWSRegion + "#/stacks/stackinfo?stackId="
 
 	fmt.Printf("-------------- Listing Stacks | Match Pattern: [%v] --------------\n", color.Gray.Render(envLabel))
@@ -391,7 +397,7 @@ func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDet
 					color.Error.Printf("  Error describing stack %v", mStk)
 					break // real error.
 				}
-				dependencyTree[mStk] = StackDetails{
+				dependencyTree[mStk] = models.StackDetails{
 					StackName:      mStk,
 					Status:         "DELETE_COMPLETE",
 					CFNConsoleLink: (CFNConsoleBaseURL + mStk),
@@ -410,7 +416,7 @@ func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDet
 					break
 				}
 
-				dependencyTree[mStk] = StackDetails{
+				dependencyTree[mStk] = models.StackDetails{
 					StackName:            mStk,
 					Status:               *sDetails.StackStatus,
 					Exports:              exports,
@@ -427,7 +433,7 @@ func prepareDependencyTree(envLabel string, cfn CFNManager) (map[string]StackDet
 
 // --------------------- Utility functions ---------------------------
 
-func getStackWithMissingDependencies(dt map[string]StackDetails) map[string]struct{} {
+func getStackWithMissingDependencies(dt map[string]models.StackDetails) map[string]struct{} {
 	allImporterStacks := map[string]struct{}{}
 	notListed := map[string]struct{}{}
 	for _, details := range dt {
@@ -447,15 +453,17 @@ func getStackWithMissingDependencies(dt map[string]StackDetails) map[string]stru
 	return notListed
 }
 
-func writeToJSON(envLabel string, data map[string]StackDetails) {
+func writeToJSON(envLabel string, data map[string]models.StackDetails) {
 	file, _ := json.MarshalIndent(data, "", " ")
 	_ = ioutil.WriteFile("stack_teardown_details.json", file, 0644)
 }
 
+// CurrentUTCDateTime returns current time in ISO string
 func CurrentUTCDateTime() string {
 	return time.Now().UTC().Format("2006-01-02T15:04:05Z")
 }
 
+// TimeDiff returns difference of two timestamps in minutes
 func TimeDiff(startTime, endTime string) string {
 	st, _ := time.Parse(time.RFC3339, startTime)
 	et, _ := time.Parse(time.RFC3339, endTime)
@@ -463,8 +471,8 @@ func TimeDiff(startTime, endTime string) string {
 	return fmt.Sprintf("%.2f", diff.Minutes())
 }
 
-// updating global vars used for alerts
-func UpdateNukeStats(dt map[string]StackDetails) {
+// UpdateNukeStats updates global variables used for capturing teardown stats
+func UpdateNukeStats(dt map[string]models.StackDetails) {
 	NUKE_END_TIME = CurrentUTCDateTime()
 	st, _ := time.Parse(time.RFC3339, NUKE_START_TIME)
 	et, _ := time.Parse(time.RFC3339, NUKE_END_TIME)
@@ -472,7 +480,7 @@ func UpdateNukeStats(dt map[string]StackDetails) {
 
 	deletedStackCount := 0
 	for _, stackDetails := range dt {
-		if stackDetails.Status == DELETE_COMPLETE {
+		if stackDetails.Status == models.DELETE_COMPLETE {
 			deletedStackCount++
 		}
 	}

@@ -1,4 +1,7 @@
 # CFN Teardown
+[![Go Report Card](https://goreportcard.com/badge/github.com/nirdosh17/cfn-teardown)](https://goreportcard.com/report/github.com/nirdosh17/cfn-teardown)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
+![Latest GitHub Release](https://img.shields.io/github/release/nirdosh17/cfn-teardown)
 
 CFN Teardown is a tool to delete matching CloudFormation stacks respecting stack dependencies.
 
