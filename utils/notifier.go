@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package utils provides cli specifics methods for interacting with AWS services
 package utils
 
 import (
@@ -25,12 +27,14 @@ import (
 	"github.com/nirdosh17/cfn-teardown/models"
 )
 
+// NotificationManager exposes methods for sending alerts to slack channel.
 type NotificationManager struct {
 	StackPattern    string
 	DryRun          string
 	SlackWebHookURL string // Webhook url is specific to channel
 }
 
+// AlertMessage is the structure of a alert event which is translated to slack message later.
 type AlertMessage struct {
 	Message     string // Long message with details about the event
 	Event       string // Start | Complete | Error
@@ -38,13 +42,16 @@ type AlertMessage struct {
 	Attachment  map[string]interface{}
 }
 
-// building slack messages: https://app.slack.com/block-kit-builder
+// SlackMessage is the structure accepted by Slack post message api.
+// More info: https://app.slack.com/block-kit-builder
 type SlackMessage struct {
 	Attachments []map[string]interface{} `json:"attachments"`
 }
 
+// ColorMapping is the mapping of slack message color based on teardown event types 'Start', 'Complete', 'Error'
 var ColorMapping map[string]string = map[string]string{"Start": "#f0e62e", "Complete": "#25db2e", "Error": "#e81e1e"}
 
+// StartAlert prepares slack message for teardown start event
 func (nm NotificationManager) StartAlert(am AlertMessage) {
 	am.Event = "Start"
 	am.Attachment = map[string]interface{}{
@@ -87,6 +94,7 @@ func (nm NotificationManager) StartAlert(am AlertMessage) {
 	nm.Alert(am)
 }
 
+// ErrorAlert prepares slack message for stack deletion error
 func (nm NotificationManager) ErrorAlert(am AlertMessage) {
 	am.Event = "Error"
 	am.Attachment = map[string]interface{}{
@@ -151,6 +159,7 @@ func (nm NotificationManager) ErrorAlert(am AlertMessage) {
 	nm.Alert(am)
 }
 
+// StuckAlert prepares slack message when stack teardown is stuck
 func (nm NotificationManager) StuckAlert(am AlertMessage) {
 	am.Event = "Error"
 	am.Attachment = map[string]interface{}{
@@ -202,6 +211,7 @@ func (nm NotificationManager) StuckAlert(am AlertMessage) {
 	nm.Alert(am)
 }
 
+// SuccessAlert prepares slack message for successful completion of stack teardown
 func (nm NotificationManager) SuccessAlert(am AlertMessage) {
 	am.Event = "Complete"
 	am.Attachment = map[string]interface{}{
@@ -248,6 +258,7 @@ func (nm NotificationManager) SuccessAlert(am AlertMessage) {
 	nm.Alert(am)
 }
 
+// GenericAlert prepares slack message for a generic message
 func (nm NotificationManager) GenericAlert(am AlertMessage) {
 	am.Event = "Error"
 	am.Attachment = map[string]interface{}{
@@ -274,6 +285,8 @@ func (nm NotificationManager) GenericAlert(am AlertMessage) {
 	nm.Alert(am)
 }
 
+// Alert posts message to Slack channel using webhook
+// Only posts the message if it's not a dry run and webhook url is present
 func (nm NotificationManager) Alert(am AlertMessage) error {
 	if nm.DryRun != "false" {
 		return nil
