@@ -3,15 +3,13 @@
 ![Latest GitHub Release](https://img.shields.io/github/release/nirdosh17/cfn-teardown)
 
 # CFN Teardown
-CFN Teardown is a tool to delete matching CloudFormation stacks respecting stack dependencies.
+Cleanup CloudFormation stacks respecting the order of dependencies.
 
 ## Features
 
-- Stack name pattern matching for deletion.
+- Stack name pattern matching for deletion. Finds out dependent/importer/child stacks recursively from a root stack.
 
-- Generates stack dependencies in a file from which shows how loosely or tighly coupled the stacks are.
-
-- Builds dependency tree for intelligent/faster teardown.
+- Builds dependency tree for faster teardown. Dependency tree also gives insight on loose/tight coupling of the stacks.
 
 - Multiple safety checks to prevent accidental deletion.
 
@@ -28,18 +26,8 @@ OR
 
 Download binary manually from [HERE](https://github.com/nirdosh17/cfn-teardown/releases).
 
-
+---
 ### Usage
-If you deploy all of you intrastructure using CloudFormation with a `consistent naming convention` for stacks, then you can use this tool to tear down the environment.
-
-**Example of consistent stack naming:**
-
-- qa-bucket-users
-- qa-service-user-management
-- qa-service-user-search
-
-You can supply stack pattern as `qa-` in this tool to delete these stacks.
-
 Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROFILE`
 
 1. Run `cfn-teardown -h` and see available commands and needed parameters.
@@ -50,10 +38,30 @@ Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROF
 
 2. Tear down stacks: `cfn-teardown deleteStacks`
 
-	_Deletes matching stacks and updates status in the teardown details file._
+	_Deletes matching stacks and updates status in the teardown details file as the script is running._
 
+---
 
+### Selecting Stacks For Deletion
+**For stacks with consistent naming convention:**
 
+Let's say you have stacks starting with the environment name followed by a hyphen:
+- _qa-base-infra_
+- _qa-service-user-management_
+- _qa-service-user-search_
+
+In this can, you need to set stack pattern as `^qa-` to match stacks starting with `qa-`.
+
+**For stacks which do not follow any naming pattern:**
+
+Example:
+- _qa-base-infra_
+- _service-user-management_ (depends on base infra)
+- _user-search-service_ (depends on base infra)
+
+Use the root stack's name as the stack pattern i.e. `^qa-base-infra`. The script will find out all dependendent stacks from the root stack **recursively** until the leaf nodes have zero importer stacks.
+
+---
 ### Configuration
 
 Configuration for this command can be set in three different ways in the precedence order defined below:
@@ -88,7 +96,7 @@ Configuration for this command can be set in three different ways in the precede
 
 See available configurations via: `cfn-teardown <command> --help`
 
-
+---
 ### Stack Teardown Strategy
 
 1. Find matching stacks based on the regex provided
@@ -146,12 +154,14 @@ See available configurations via: `cfn-teardown <command> --help`
 
 8. If a stack is not deleted even after exhausting all retries(default 5), teardown is halted and manual intervention is requested.
 
+---
 
-### Assume Role
+### AWS Credentials
+Only AWS profile based authentication supported at the moment. By default it tries to use the IAM role of the caller but we can also supply role arn if we want the script to assume a different role.
 
-By default it tries to use the IAM role of environment it is currently running in. But we can also supply role arn if we want the script to assume a different role.
+---
 
-### Safety Checks for Accidental Deletion
+### Safety Flags
 
 - `DRY_RUN` flag must be explicitely set to `false` to activate delete functionality
 
@@ -159,12 +169,20 @@ By default it tries to use the IAM role of environment it is currently running i
 
 - `TARGET_ACCOUNT_ID`: If provided, this flag confirms that the given aws account id matches with account id in the aws session during runtime to make sure that we are deleting stacks in the desired aws account
 
+---
 
 ### Limitation
-If a stack can't be deleted from the AWS Console itself due to some dependencies or error, then it won't be deleted by this tool as well. In such case, manual intervention is required.
+If a stack can't be deleted from the AWS Console itself due to some dependencies or some error, then it won't be deleted by this tool as well. In such case, manual intervention is required.
+
+---
 
 ### Demo
-https://user-images.githubusercontent.com/5920689/130267973-df7e83d4-ae07-4037-a079-95595a5a413d.mp4
+> <details><summary><strong>Deleting Stacks</strong></summary>
+> <img src="https://user-images.githubusercontent.com/5920689/130366139-30912d09-7d79-4537-8809-014c75ce38c0.gif" width="600" alt="deleting stacks" />
+
+> <details><summary><strong>Slack Notifications</strong></summary>
+> <img src="https://user-images.githubusercontent.com/5920689/130365254-dd2d911d-803b-4c02-93ec-2f78badedb6a.png" width="600" alt="slack notifications sample" />
+
 
 ---
 ### Caution :warning:
