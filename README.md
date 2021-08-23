@@ -46,7 +46,7 @@ Required global flags for all commands: `STACK_PATTERN`, `AWS_REGION`, `AWS_PROF
 **For stacks with consistent naming convention:**
 
 Let's say you have stacks starting with the environment name followed by a hyphen:
-- _qa-base-infra_
+- _qa-shared-networks_
 - _qa-service-user-management_
 - _qa-service-user-search_
 
@@ -55,9 +55,9 @@ In this can, you need to set stack pattern as `^qa-` to match stacks starting wi
 **For stacks which do not follow any naming pattern:**
 
 Example:
-- _qa-base-infra_
-- _service-user-management_ (depends on base infra)
-- _user-search-service_ (depends on base infra)
+- _qa-shared-networks_
+- _service-user-management_ (depends on shared networks stack)
+- _user-search-service_ (depends on shared networks stack)
 
 Use the root stack's name as the stack pattern i.e. `^qa-base-infra`. The script will find out all dependendent stacks from the root stack **recursively** until the leaf nodes have zero importer stacks.
 
@@ -157,7 +157,7 @@ See available configurations via: `cfn-teardown <command> --help`
 ---
 
 ### AWS Credentials
-Only AWS profile based authentication supported at the moment. By default it tries to use the IAM role of the caller but we can also supply role arn if we want the script to assume a different role.
+Only AWS profile based authentication supported at the moment. By default, it tries to use the IAM role of the caller but we can also supply role arn if we want the script to assume a different role.
 
 ---
 
