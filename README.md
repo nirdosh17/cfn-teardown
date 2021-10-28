@@ -59,7 +59,7 @@ Example:
 - _service-user-management_ (depends on shared networks stack)
 - _user-search-service_ (depends on shared networks stack)
 
-Use the root stack's name as the stack pattern i.e. `^qa-base-infra`. The script will find out all dependendent stacks from the root stack **recursively** until the leaf nodes have zero importer stacks.
+Use the root stack's name as the stack pattern i.e. `^qa-shared-networks`. The script will find out all dependendent stacks from the root stack **recursively** until the leaf nodes have zero importer stacks.
 
 ---
 ### Configuration
