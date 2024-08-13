@@ -35,9 +35,8 @@ import (
 // config vars
 var (
 	cfgFile string
+	config  models.Config
 )
-
-var config models.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
