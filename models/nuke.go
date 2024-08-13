@@ -19,14 +19,15 @@ package models
 
 // Config represents all the parameters supported by cfn-teardown
 type Config struct {
-	AWSProfile           string `mapstructure:"AWS_PROFILE"`
-	AWSRegion            string `mapstructure:"AWS_REGION"`
-	TargetAccountId      string `mapstructure:"TARGET_ACCOUNT_ID"`
-	StackPattern         string `mapstructure:"STACK_PATTERN"`
-	StackWaitTimeSeconds int16  `mapstructure:"STACK_WAIT_TIME_SECONDS"`
-	MaxDeleteRetryCount  int16  `mapstructure:"MAX_DELETE_RETRY_COUNT"`
-	AbortWaitTimeMinutes int16  `mapstructure:"ABORT_WAIT_TIME_MINUTES"`
-	SlackWebhookURL      string `mapstructure:"SLACK_WEBHOOK_URL"`
-	RoleARN              string `mapstructure:"ROLE_ARN"`
-	DryRun               string `mapstructure:"DRY_RUN"`
+	AWSProfile           string  `mapstructure:"AWS_PROFILE"`
+	AWSRegion            string  `mapstructure:"AWS_REGION"`
+	TargetAccountId      string  `mapstructure:"TARGET_ACCOUNT_ID"`
+	StackPattern         string  `mapstructure:"STACK_PATTERN"`
+	StackWaitTimeSeconds int16   `mapstructure:"STACK_WAIT_TIME_SECONDS"`
+	MaxDeleteRetryCount  int16   `mapstructure:"MAX_DELETE_RETRY_COUNT"`
+	AbortWaitTimeMinutes int16   `mapstructure:"ABORT_WAIT_TIME_MINUTES"`
+	SlackWebhookURL      string  `mapstructure:"SLACK_WEBHOOK_URL"`
+	RoleARN              string  `mapstructure:"ROLE_ARN"`
+	DryRun               string  `mapstructure:"DRY_RUN"`
+	EndpointURL          *string `mapstructure:"ENDPOINT_URL"`
 }

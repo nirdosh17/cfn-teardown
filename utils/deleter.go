@@ -55,8 +55,8 @@ var (
 // InitiateTearDown scans and deletes cloudformation stacks respecting the dependencies.
 // A stack is eligible for deletion when it's exports has not been imported by any other stacks.
 func InitiateTearDown(config models.Config) {
-	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
-	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
+	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion, EndpointURL: config.EndpointURL}
+	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion, EndpointURL: config.EndpointURL}
 	notifier := NotificationManager{StackPattern: config.StackPattern, SlackWebHookURL: config.SlackWebhookURL, DryRun: config.DryRun}
 
 	var dependencyTree = map[string]models.StackDetails{}
