@@ -18,13 +18,17 @@ Cleanup CloudFormation stacks respecting the order of dependencies.
 ---
 
 ### Install
-Run downloader script:
-```bash
-curl -f https://raw.githubusercontent.com/nirdosh17/cfn-teardown/master/download.sh | sh
-```
-OR
+Download binary for the appropriate platform from [HERE](https://github.com/nirdosh17/cfn-teardown/releases).
 
-Download binary manually from [HERE](https://github.com/nirdosh17/cfn-teardown/releases).
+```bash
+✗ wget -q https://github.com/nirdosh17/cfn-teardown/releases/download/v1.0.0/cfn-teardown_Linux_x86_64.tar.gz
+✗ tar -xzf cfn-teardown_Linux_x86_64.tar.gz
+✗ touch ~/.cfn-teardown.yaml 
+
+✗ ./cfn-teardown version
+Using config file:  /Users/nirdosh/.cfn-teardown.yaml
+Version:  v1.0.0
+```
 
 ---
 ### Usage
