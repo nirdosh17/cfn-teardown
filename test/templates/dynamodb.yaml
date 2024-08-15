@@ -1,0 +1,49 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Dynamodb table
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: Environment label e.g. dev, test, prod
+    Default: test
+  DynamoDBTableName:
+    Type: String
+    Description: The name of the DynamoDB table to be deployed
+    Default: DynamoDB-Table-CFNExample
+  DynamoDBPKName:
+    Type: String
+    Description: The name of the primary key that will exist in the DynamoDB table
+    Default: itemId
+
+Resources:
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        -
+          AttributeName: !Ref DynamoDBPKName
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: !Ref DynamoDBPKName
+          KeyType: HASH
+      TableName: !Ref DynamoDBTableName
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+Outputs:
+  DynamoDBTableName:
+    Description: Dynamodb table name
+    Value: !Ref DynamoDBTable
+    Export:
+      Name: !Join [ ':', [ !Ref EnvironmentName, DynamoDBTableName ] ]
+  DynamoDBPKName:
+    Description: Dynamodb table Primary Key
+    Value: !Ref DynamoDBPKName
+    Export:
+      Name: !Join [ ':', [ !Ref EnvironmentName, DynamoDBPKName ] ]

@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Base stack for integration test
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: Environment label e.g. dev, test, prod
+    Default: test
+
+  SecondOctet:
+    Type: Number
+    MinValue: 0
+    MaxValue: 255
+    Default: 1
+
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Sub '10.${SecondOctet}.0.0/16'
+      InstanceTenancy: "default"
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  PrivateSubnetAZ1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      CidrBlock: !Sub '10.${SecondOctet}.0.0/22'
+      VpcId: !Ref VPC
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  PrivateSubnetAZ2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      CidrBlock: !Sub '10.${SecondOctet}.4.0/22'
+      VpcId: !Ref VPC
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  RouteTableAZ1Private:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  RouteTableAZ2Private:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+Outputs:
+  VPC:
+    Description: VPC id
+    Value: !Ref VPC
+    Export:
+      Name: !Join [ ':', [ !Ref EnvironmentName, 'VPC' ] ]
+
+  PrivateSubnetAZ1:
+    Description: Private subnet us-east-1a
+    Value: !Ref PrivateSubnetAZ1
+    Export:
+      Name: !Join [ ':', [ !Ref EnvironmentName, 'PrivateSubnetAZ1' ] ]
+
+  PrivateSubnetAZ2:
+    Description: Private subnet us-east-1b
+    Value: !Ref PrivateSubnetAZ2
+    Export:
+      Name: !Join [ ':', [ !Ref EnvironmentName, 'PrivateSubnetAZ2' ] ]
+
+  CidrBlock:
+    Description: 'VPC network CIDR block'
+    Value: !GetAtt 'VPC.CidrBlock'
+    Export:
+      Name: !Join [ ':', [ !Ref EnvironmentName, 'CidrBlock' ] ]
