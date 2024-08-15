@@ -34,6 +34,7 @@ type S3Manager struct {
 	NukeRoleARN     string
 	AWSProfile      string
 	AWSRegion       string
+	EndpointURL     *string
 }
 
 // EmptyBucket deletes all objects from a particular S3 bucket.
@@ -75,7 +76,11 @@ func (sm S3Manager) EmptyBucket(bucketName string) error {
 // It also has validation for target account id to ensure we are deleting in the correct aws account.
 func (sm S3Manager) Session() (*s3.S3, error) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		Config:            aws.Config{Region: aws.String(sm.AWSRegion)},
+		Config: aws.Config{
+			Region: aws.String(sm.AWSRegion),
+			// localstack endpoint URL is passed during integration tests, otherwise it is nil
+			Endpoint: sm.EndpointURL,
+		},
 		SharedConfigState: session.SharedConfigEnable,
 		Profile:           sm.AWSProfile,
 	}))

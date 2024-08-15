@@ -29,15 +29,6 @@ import (
 	"github.com/nirdosh17/cfn-teardown/models"
 )
 
-// -------------- configs ---------------
-const (
-	// STACK_DELETION_WAIT_TIME_IN_SEC is the time to wait for stacks before peforming status checks after delete requests have been sent.
-	STACK_DELETION_WAIT_TIME_IN_SEC int16 = 30
-
-	// MAX_DELETE_RETRY_COUNT specifies the number of times we should retry deleting a stack before giving up.
-	MAX_DELETE_RETRY_COUNT int16 = 5
-)
-
 var (
 	// NUKE_START_TIME is the start timestamp of teardown.
 	NUKE_START_TIME = CurrentUTCDateTime()
@@ -64,8 +55,8 @@ var (
 // InitiateTearDown scans and deletes cloudformation stacks respecting the dependencies.
 // A stack is eligible for deletion when it's exports has not been imported by any other stacks.
 func InitiateTearDown(config models.Config) {
-	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
-	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion}
+	cfn := CFNManager{StackPattern: config.StackPattern, TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion, EndpointURL: config.EndpointURL}
+	s3 := S3Manager{TargetAccountId: config.TargetAccountId, NukeRoleARN: config.RoleARN, AWSProfile: config.AWSProfile, AWSRegion: config.AWSRegion, EndpointURL: config.EndpointURL}
 	notifier := NotificationManager{StackPattern: config.StackPattern, SlackWebHookURL: config.SlackWebhookURL, DryRun: config.DryRun}
 
 	var dependencyTree = map[string]models.StackDetails{}
@@ -152,8 +143,8 @@ func InitiateTearDown(config models.Config) {
 
 		// 3. Wait for 30 seconds
 		fmt.Println("\n-----------------------------------------------------------------------------")
-		fmt.Printf("Waiting for %v seconds...\n", STACK_DELETION_WAIT_TIME_IN_SEC)
-		time.Sleep(time.Duration(STACK_DELETION_WAIT_TIME_IN_SEC) * time.Second)
+		fmt.Printf("Waiting for %v seconds...\n", config.StackWaitTimeSeconds)
+		time.Sleep(time.Duration(config.StackWaitTimeSeconds) * time.Second)
 
 		// 4. Get list of stacks in DELETE_IN_PROGRESS and describe stack
 		//     4.1. If status is still DELETE_IN_PROGRESS, skip
@@ -208,7 +199,7 @@ func InitiateTearDown(config models.Config) {
 				writeToJSON(config.StackPattern, dependencyTree)
 				fmt.Printf("Stack successfully deleted: %v\n", sName)
 			} else {
-				if stack.DeleteAttempt >= MAX_DELETE_RETRY_COUNT {
+				if stack.DeleteAttempt >= config.MaxDeleteRetryCount {
 					stack.Status = newStatus
 					statusReason := *details.StackStatusReason
 					stack.StackStatusReason = statusReason
@@ -225,7 +216,7 @@ func InitiateTearDown(config models.Config) {
 					// In some cases cloud9 stacks can't be deleted due to security group being manually attached to other resources like elastic search or redis
 					// In such case it is better to wait for dependent resource's(mostly datastore or cache) stack and security group to get deleted and retry again
 					newDeleteAttempt := stack.DeleteAttempt + 1
-					fmt.Printf("Retrying deleting stack: %v Delete Attempt: %v/%v\n", sName, newDeleteAttempt, MAX_DELETE_RETRY_COUNT)
+					fmt.Printf("Retrying deleting stack: %v Delete Attempt: %v/%v\n", sName, newDeleteAttempt, config.MaxDeleteRetryCount)
 					err := cfn.DeleteStack(sName)
 					if err != nil {
 						UpdateNukeStats(dependencyTree)

@@ -38,6 +38,7 @@ type CFNManager struct {
 	StackPattern    string
 	AWSProfile      string
 	AWSRegion       string
+	EndpointURL     *string
 }
 
 // DescribeStack returns description for particular stack.
@@ -161,6 +162,7 @@ func (dm CFNManager) ListEnvironmentStacks() (map[string]models.StackDetails, er
 		}
 	}
 
+	// FIX: this condition is unreachable
 	if err != nil {
 		fmt.Printf("Failed listing stacks with pattern: '%v', Error: '%v'\n", dm.StackPattern, err)
 		return envStacks, err
@@ -196,10 +198,11 @@ func (dm CFNManager) ListEnvironmentStacks() (map[string]models.StackDetails, er
 }
 
 // ListEnvironmentExports finds all exported values for our matching stacks in this format:
-// 	{
-//  	 "stack-1-name": ["export-1", "export-2"],
-//   	"stack-2-name": []
-// 	}
+//
+//		{
+//	 	 "stack-1-name": ["export-1", "export-2"],
+//	  	"stack-2-name": []
+//		}
 func (dm CFNManager) ListEnvironmentExports() (map[string][]string, error) {
 	exports := map[string][]string{}
 
@@ -257,7 +260,11 @@ func (dm CFNManager) RegexMatch(stackName string) bool {
 // It also has validation for target account id to ensure we are deleting in the correct aws account.
 func (dm CFNManager) Session() (*cloudformation.CloudFormation, error) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		Config:            aws.Config{Region: aws.String(dm.AWSRegion)},
+		Config: aws.Config{
+			Region: aws.String(dm.AWSRegion),
+			// localstack endpoint URL is passed during integration tests, otherwise it is nil
+			Endpoint: dm.EndpointURL,
+		},
 		SharedConfigState: session.SharedConfigEnable,
 		Profile:           dm.AWSProfile,
 	}))

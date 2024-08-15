@@ -1,0 +1,160 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Example lambda function
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: Environment label e.g. dev, test, prod
+    Default: test
+
+  LambdaFunctionName:
+    Type: String
+    Description: The name of the Lambda function to be deployed
+    Default: test-lambda
+
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '{EnvironmentName}-lambda-role'
+      Description: An execution role for a Lambda function launched by CloudFormation
+      ManagedPolicyArns:
+        - !Ref LambdaPolicy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action:
+          - 'sts:AssumeRole'
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  LambdaPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '{EnvironmentName}-lambda-policy'
+      Description: Managed policy for a Lambda function launched by CloudFormation
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'dynamodb:PutItem'
+            Resource: !Sub
+              - 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTable}'
+              - DynamoDBTable:
+                  Fn::ImportValue: !Join [":", [!Ref EnvironmentName, "DynamoDBTableName"]]
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource: !Join ['',['arn:', !Ref AWS::Partition, ':logs:', !Ref AWS::Region, ':', !Ref AWS::AccountId, ':log-group:/aws/lambda/', !Ref LambdaFunctionName, ':*']]
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['',['/aws/lambda/', !Ref LambdaFunctionName]]
+      RetentionInDays: 30
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for lambda in vpc
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref EnvironmentName, "CidrBlock"]]
+          IpProtocol: -1
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${EnvironmentName}:VPC
+      Tags:
+      - Key: cfnteardown
+        Value: true
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Adds a random string value to the specified DynamoDB table
+      FunctionName: !Ref LambdaFunctionName
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Runtime: python3.8
+      Role: !GetAtt 'LambdaRole.Arn'
+      Timeout: 240
+      Environment:
+        Variables:
+          TableName:
+            Fn::ImportValue: !Join [":", [!Ref EnvironmentName, "DynamoDBTableName"]]
+          KeyName:
+            Fn::ImportValue: !Join [":", [!Ref EnvironmentName, "DynamoDBPKName"]]
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - Fn::ImportValue: !Sub "${EnvironmentName}:PrivateSubnetAZ1"
+          - Fn::ImportValue: !Sub "${EnvironmentName}:PrivateSubnetAZ2"
+      Tags:
+      - Key: cfnteardown
+        Value: true
+      Code:
+        ZipFile: |
+            # Imports
+            import os
+            import boto3
+            import botocore
+            import logging
+            import random
+            import string
+
+            # Set up clients and resources
+            ddbclient = boto3.client('dynamodb')
+
+            # Set up the logger
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+            #logger.setLevel(logging.DEBUG) # Very verbose
+
+            # Env variables from CFN
+            tablename = os.environ.get('TableName')
+            keyname = os.environ.get('KeyName')
+
+            def lambda_handler(event, context):
+                # Generate a random string to ensure no duplicates are put into DDB table
+                randomstring = (''.join(random.choice(string.ascii_letters) for i in range(10)))
+                logger.info('Random string generated: %s', randomstring)
+
+                def ddb_client(tablename, keyname, stringdata):
+                    response = ddbclient.put_item(
+                    Item={
+                        keyname: {
+                            'S': stringdata
+                        }
+                    },
+                    ReturnConsumedCapacity='TOTAL',
+                    TableName=tablename
+                    )
+                    return(response)
+
+                try:
+                    ddb_response = ddb_client(tablename, keyname, randomstring)
+                    logger.info(ddb_response)
+                except botocore.exceptions.ClientError as error:
+                    # Put your error handling logic here
+                    raise error
+
+                return(ddb_response)
+Outputs:
+  CLI:
+    Description: Use this command to invoke the Lambda function
+    Value: !Sub |
+        aws lambda invoke --function-name ${LambdaFunction} --payload '{"null": "null"}' lambda-output.txt --cli-binary-format raw-in-base64-out
